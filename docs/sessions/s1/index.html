@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Session 1: Boot Sequence</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=IBM+Plex+Sans:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../assets/css/site.css">
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/" } }</script>
+</head>
+<body data-base="../.." data-page="s1" data-rust="0">
+<header class="topbar" data-crumbs='[{"t":"Course map","href":"../../index.html"},{"t":"Session 1"}]'></header>
+<main class="wrap">
+  <section class="hero">
+    <div>
+      <div class="hero-num"><span class="num" aria-hidden="true">01</span><p class="eyebrow">Session 1 · Week 1 · Monday</p></div>
+      <h1>Boot <span class="r">Sequence</span></h1>
+      <p class="lede">Install Rust, meet cargo, and write real programs with variables, types, functions and loops. By the end you'll have a robot that boots, counts down and tells you how much battery it has left.</p>
+      <div class="rustmeter" style="--lvl:0%;max-width:320px"><span>Robbie's rust</span><i></i><span>0% · factory shiny</span></div>
+      <div class="cta-row">
+        <a class="btn primary" href="presentation.html">Open the slides</a>
+        <a class="btn" href="handbook.html">Read the handbook</a>
+      </div>
+    </div>
+    <!-- Video-ready: add data-video="assets/video/<name>.mp4" to this figure and the loop plays over the still. -->
+    <figure class="hero-img" style="margin:0">
+      <img src="../../assets/img/robbie-rust-0.jpg" alt="Robbie v11 standing in the studio, every panel clean and shiny" width="800" height="1000">
+      <figcaption>Robbie at Session 1. Not a speck of rust.</figcaption>
+    </figure>
+  </section>
+
+  <h2>Session materials</h2>
+  <div class="mats">
+    <a class="mat" href="presentation.html"><span class="kind">Presentation · 60 min</span><b>Slides</b><span>21 slides with runnable code. Arrow keys to move, N for the teacher's speaker notes.</span></a>
+    <a class="mat" href="handbook.html#cheat"><span class="kind">Cheat sheet</span><b>One page, all of Session 1</b><span>Every keyword, type and cargo command from today on a single screen. Keep it open during the homework.</span></a>
+    <a class="mat" href="handbook.html"><span class="kind">Student Handbook</span><b>Boot Sequence Handbook</b><span>Everything from class written down, with memory tricks, gotchas, a cheat sheet and 10 practice questions.</span></a>
+    <a class="mat" href="quiz.html"><span class="kind">Quiz 1 · 15 min</span><b>Boot Sequence Quiz</b><span>12 questions, pass mark 70%. Your best score is saved in this browser.</span></a>
+  </div>
+
+  <h2>Build it</h2>
+  <div class="mats">
+    <a class="mat" href="https://github.com/c1t1zen1/RUSTUP/tree/main/labs/lab1-robbie-greeting"><span class="kind">Lab 1 · in class · 45 min</span><b>Robbie's Greeting</b><span>A boot checklist, a countdown and a battery meter. Your first <code>cargo run</code> that does something.</span></a>
+    <a class="mat" href="https://github.com/c1t1zen1/RUSTUP/tree/main/homework/hw1-units-converter"><span class="kind">Homework 1 · due Session 2</span><b>Units Converter</b><span>Six functions, 8 visible tests and a handful of hidden edge cases. Scored out of 10 by cargo test, clippy and rustfmt.</span></a>
+  </div>
+
+  <h2>Topics</h2>
+  <ul id="topics" class="muted"></ul>
+
+  <div class="cta-row" style="margin-block:32px 48px">
+    <a class="btn" href="../../index.html">Back to the course map</a>
+  </div>
+</main>
+<script>
+window.ROBBIE_PAGE = {
+  greeting: "Welcome to Session 1! Today I'm factory fresh. Start with the slides, then the lab. The homework is where the learning sticks.",
+  tips: ["Run cargo check often. It's the fastest way to hear what the compiler thinks.", "Do the quiz after the handbook, not before. Trust me."],
+  eli5: ["Rust is a language where the compiler checks your homework before you hand it in."],
+  hype: ["Session 1 of 6. Every expert started exactly here."]
+};
+</script>
+<script src="../../assets/js/course.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="../../assets/js/site.js"></script>
+<script>
+(function(){ var s = window.RUSTUP && RUSTUP.sessions[0]; var ul = document.getElementById("topics");
+  if (s && ul) ul.innerHTML = s.topics.map(function(t){ return "<li>" + t + "</li>"; }).join(""); })();
+</script>
+<script src="../../assets/js/robbie.js"></script>
+<script type="module" src="../../assets/js/robbie3d.js"></script>
+</body>
+</html>

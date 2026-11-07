@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ship It Handbook</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=IBM+Plex+Sans:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../assets/css/site.css">
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/" } }</script>
+</head>
+<body data-base="../.." data-page="s6-handbook" data-rust="5">
+<header class="topbar" data-crumbs='[{"t": "Course map", "href": "../../index.html"}, {"t": "Session 6", "href": "index.html"}, {"t": "Student Handbook"}]'></header>
+
+<main class="read">
+  <div class="doc-head">
+    <p class="eyebrow">Student Handbook · Session 6</p>
+    <h1>Ship It</h1>
+    <div class="meta"><span>Reading time: 40 minutes</span><span>Robbie: 95% rust, chest plate cracked</span></div>
+  </div>
+
+  <div class="callout robbie"><img src="../../assets/img/robbie-face.jpg" alt=""><div><span class="tag">Robbie says</span>
+    <p>I'm 95% rust. My armor's gone and the chrome chest plate has a crack down the middle. It's the last shiny thing I've got, so I'm shipping before it goes. This handbook is the edges of Rust: macros, unsafe code, talking to C, speed, the web and publishing. Then the final project. A few examples fail on purpose, and one panics on purpose.</p>
+  </div></div>
+
+  <nav class="toc" aria-label="Contents"><b>Contents</b><ol>
+    <li><a href="#macros">Macros</a></li><li><a href="#unsafe">unsafe</a></li><li><a href="#wrap">Safe wrappers</a></li>
+    <li><a href="#ffi">FFI with C</a></li><li><a href="#speed">Speed and overflow</a></li><li><a href="#wasm">WebAssembly</a></li>
+    <li><a href="#publish">Docs and publishing</a></li><li><a href="#review">Code review</a></li><li><a href="#errors">Error field guide</a></li>
+    <li><a href="#cheat">Cheat sheet</a></li><li><a href="#practice">Practice questions</a></li><li><a href="#final">The final project</a></li>
+  </ol></nav>
+
+  <h2 id="macros">1. Macros</h2>
+  <p>You've used macros since your first program: <code>println!</code>, <code>vec!</code>, <code>assert_eq!</code>. The <code>!</code> marks them. A macro runs while your program compiles and writes code in its place. <code>macro_rules!</code> makes a <b>declarative macro</b>: a list of arms, like a <code>match</code>, except it matches the shape of the code you pass in.</p>
+  <pre data-run>// A macro matches the shape of what you pass it, then writes code.
+macro_rules! squeak {
+    () =&gt; {
+        println!("squeak")
+    };
+    ($times:expr) =&gt; {
+        for _ in 0..$times {
+            println!("squeak")
+        }
+    };
+}
+
+fn main() {
+    squeak!(); // matches the first arm
+    squeak!(2); // matches the second, with $times = 2
+}</pre>
+  <p>Inside a pattern, <code>$name:kind</code> captures a piece of code. The kinds you'll use most:</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Kind</th><th>Matches</th><th>Example</th></tr></thead>
+    <tbody>
+      <tr><td><code>expr</code></td><td>Any expression</td><td><code>3</code>, <code>a + b</code>, <code>name.len()</code></td></tr>
+      <tr><td><code>ident</code></td><td>A name</td><td><code>battery</code>, <code>Robbie</code></td></tr>
+      <tr><td><code>ty</code></td><td>A type</td><td><code>u32</code>, <code>Vec&lt;String&gt;</code></td></tr>
+      <tr><td><code>literal</code></td><td>A literal value</td><td><code>"beep"</code>, <code>42</code></td></tr>
+      <tr><td><code>tt</code></td><td>Any single token tree</td><td>Almost anything</td></tr>
+    </tbody>
+  </table></div>
+  <p><b>Repetition</b> is what makes macros worth having. <code>$( ... ),*</code> matches zero or more comma-separated items, and the same syntax in the arm's body repeats code once for each. Use <code>+</code> for one or more, and <code>?</code> for zero or one.</p>
+  <pre data-run>// $( ... ),* matches a comma-separated list, and repeats the code for each.
+macro_rules! parts_list {
+    ($($part:expr),* $(,)?) =&gt; {
+        vec![$(String::from($part)),*]
+    };
+}
+
+fn main() {
+    let spares = parts_list!["bolt", "spring", "left elbow"];
+    println!("{spares:?}");
+    let none: Vec&lt;String&gt; = parts_list![];
+    println!("{} spares in the empty box", none.len());
+}</pre>
+  <p>A macro can call itself, peeling off one item each time. This one turns <code>loudest!(a, b, c)</code> into <code>max(a, max(b, c))</code>:</p>
+  <pre data-run>// A macro can call itself, peeling one item off each time.
+macro_rules! loudest {
+    ($x:expr) =&gt; { $x };
+    ($x:expr, $($rest:expr),+) =&gt; {
+        std::cmp::max($x, loudest!($($rest),+))
+    };
+}
+
+fn main() {
+    println!("loudest squeak: {}", loudest!(42, 87, 63, 12));
+}</pre>
+  <p>When no arm fits, nothing gets written, and you get "no rules expected this token":</p>
+  <p class="muted">Fails on purpose (no arm matches). Press Run and read the error.</p>
+  <pre data-run>macro_rules! squeak {
+    () =&gt; {
+        println!("squeak")
+    };
+}
+
+fn main() {
+    squeak!(3); // no arm takes an argument
+}</pre>
+  <div class="callout mnemonic"><span class="tag">Remember this</span><p><b>A macro is a match on code.</b> And reach for it last: try a function, then a generic function, and only then a macro.</p></div>
+
+  <h2 id="unsafe">2. unsafe</h2>
+  <p>Rust's guarantees come from checks the compiler can do. A few things it can't check, so they're locked behind an <code>unsafe</code> block. Inside one you may:</p>
+  <ol>
+    <li>Follow (dereference) a raw pointer, <code>*const T</code> or <code>*mut T</code>.</li>
+    <li>Call an <code>unsafe fn</code>, which includes most functions from C.</li>
+    <li>Read or write a <code>static mut</code>.</li>
+    <li>Implement an <code>unsafe trait</code> such as <code>Send</code> by hand.</li>
+    <li>Read a field of a <code>union</code>.</li>
+  </ol>
+  <p>That's all. The borrow checker and type checker still run inside <code>unsafe</code>. Making a raw pointer is safe; following it isn't:</p>
+  <p class="muted">Fails on purpose (E0133). Press Run and read the error.</p>
+  <pre data-run>fn main() {
+    let battery = 87;
+    let p = &amp;battery as *const i32; // making a raw pointer is safe
+    println!("{}", *p); // reading through it is not
+}</pre>
+  <pre data-run>fn main() {
+    let mut battery = 87;
+    let p = &amp;mut battery as *mut i32;
+    // SAFETY: p came from a live, unique &amp;mut just above, and nothing else
+    // touches battery while we use it.
+    unsafe {
+        *p -= 10;
+        println!("battery through a raw pointer: {}", *p);
+    }
+    println!("battery: {battery}");
+}</pre>
+  <div class="callout gotcha"><span class="tag">Gotcha</span><p>If an unsafe promise is wrong, the result is <b>undefined behaviour</b>. The program might crash, might print nonsense, or might work perfectly until the day it matters. There's no error message. That's why every <code>unsafe</code> block needs a written argument.</p></div>
+  <div class="callout mnemonic"><span class="tag">Remember this</span><p><b>If you can't write the SAFETY comment, you can't write the block.</b> Start every <code>unsafe</code> block with <code>// SAFETY:</code> and say why each rule holds here.</p></div>
+
+  <h2 id="wrap">3. Safe wrappers</h2>
+  <p>The skill isn't writing unsafe code. It's writing a <b>safe function</b> with a little unsafe inside, so nobody who calls it has to think about it. Here's a real reason to need one. The two halves of an array can't overlap, but the borrow checker sees two <code>&amp;mut</code> borrows of one thing:</p>
+  <p class="muted">Fails on purpose (E0499). Press Run and read the error.</p>
+  <pre data-run>fn main() {
+    let mut joints = [5, 9, 2, 7];
+    let left = &amp;mut joints[..2];
+    let right = &amp;mut joints[2..]; // the halves don't overlap, but Rust can't tell
+    left[0] = 0;
+    right[0] = 0;
+    println!("{joints:?}");
+}</pre>
+  <p>The standard library already wraps this for you:</p>
+  <pre data-run>fn main() {
+    let mut joints = [5, 9, 2, 7];
+    let (left, right) = joints.split_at_mut(2); // std did the unsafe part for you
+    left[0] = 0;
+    right[0] = 0;
+    println!("{joints:?}");
+}</pre>
+  <p>And here's roughly how it's built. The signature promises both halves live no longer than <code>items</code>, so every caller is still fully checked:</p>
+  <pre data-run>/// Two halves you can change at once. Safe to call, unsafe inside.
+fn split_halves(items: &amp;mut [u32]) -&gt; (&amp;mut [u32], &amp;mut [u32]) {
+    let len = items.len();
+    let mid = len / 2;
+    let ptr = items.as_mut_ptr();
+    // SAFETY: ptr is valid for len items. 0..mid and mid..len never overlap,
+    // and both slices live no longer than the borrow of items.
+    unsafe {
+        (
+            std::slice::from_raw_parts_mut(ptr, mid),
+            std::slice::from_raw_parts_mut(ptr.add(mid), len - mid),
+        )
+    }
+}
+
+fn main() {
+    let mut joints = [5, 9, 2, 7, 4];
+    let (left, right) = split_halves(&amp;mut joints);
+    left[0] = 0;
+    right[0] = 0;
+    println!("{joints:?}");
+}</pre>
+  <div class="callout mnemonic"><span class="tag">Remember this</span><p><b>Unsafe on the inside, safe on the outside.</b> <code>Vec</code>, <code>String</code> and <code>split_at_mut</code> are all built this way. Look for the safe standard function before you write your own.</p></div>
+
+  <h2 id="ffi">4. FFI with C</h2>
+  <p>FFI, the foreign function interface, lets Rust call code written in C, and lets C (or Python, Swift, anything that speaks C) call Rust. You declare C functions in an <code>unsafe extern "C"</code> block. Since Rust 2024 the block itself says <code>unsafe</code>, because you're promising the declarations match the real functions.</p>
+  <pre data-run>use std::ffi::{CStr, c_char};
+
+// Rust 2024: an extern block is unsafe, because Rust can't check what's in C.
+unsafe extern "C" {
+    safe fn abs(x: i32) -&gt; i32; // `safe`: you promise it's fine with any i32... almost
+    fn strlen(s: *const c_char) -&gt; usize; // a raw pointer, so calling it stays unsafe
+}
+
+fn c_strlen(s: &amp;CStr) -&gt; usize {
+    // SAFETY: a &amp;CStr always ends in a 0 byte, which is what strlen needs.
+    unsafe { strlen(s.as_ptr()) }
+}
+
+fn main() {
+    println!("C says |-12| = {}", abs(-12));
+    println!("C says \"robbie\" has {} bytes", c_strlen(c"robbie"));
+}</pre>
+  <p>A function marked <code>safe fn</code> can be called normally. Everything else in the block is unsafe to call:</p>
+  <p class="muted">Fails on purpose (E0133). Press Run and read the error.</p>
+  <pre data-run>unsafe extern "C" {
+    fn abs(x: i32) -&gt; i32;
+}
+
+fn main() {
+    println!("{}", abs(-12)); // not marked safe, so the call needs unsafe
+}</pre>
+  <p>C strings are bytes ending in a 0 byte. Rust's <code>String</code> knows its length instead, so there are separate types for C strings:</p>
+  <pre data-run>use std::ffi::{CStr, CString};
+
+fn main() {
+    // Rust strings know their length. C strings end at a 0 byte instead.
+    let name = CString::new("Robbie v11").unwrap();
+    println!("{} bytes, plus the 0 at the end", name.as_bytes().len());
+
+    let literal: &amp;CStr = c"squeak"; // a C string literal, checked at compile time
+    println!("{literal:?} back in Rust: {}", literal.to_str().unwrap());
+
+    // A 0 byte in the middle can't be a C string.
+    println!("{:?}", CString::new("rob\0bie").is_err());
+}</pre>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Rust</th><th>C</th></tr></thead>
+    <tbody>
+      <tr><td><code>i32</code>, <code>u8</code>, <code>f64</code>, <code>usize</code></td><td><code>int</code>, <code>unsigned char</code>, <code>double</code>, <code>size_t</code></td></tr>
+      <tr><td><code>&amp;CStr</code> (borrowed), <code>CString</code> (owned)</td><td><code>const char *</code>, ending in 0</td></tr>
+      <tr><td><code>*const T</code>, <code>*mut T</code></td><td><code>const T *</code>, <code>T *</code></td></tr>
+      <tr><td><code>#[repr(C)] struct</code></td><td>A <code>struct</code> with the same fields in the same order</td></tr>
+    </tbody>
+  </table></div>
+  <p>Going the other way, <code>extern "C"</code> on a Rust function plus <code>#[unsafe(no_mangle)]</code> makes it callable from C:</p>
+  <pre data-run>// Going the other way: a Rust function that C (or Python, or Swift) can call.
+#[unsafe(no_mangle)]
+pub extern "C" fn robbie_battery_after(start: u32, steps: u32) -&gt; u32 {
+    start.saturating_sub(steps)
+}
+
+fn main() {
+    // You can still call it from Rust like any function.
+    println!("battery after 30 steps: {}", robbie_battery_after(20, 30));
+}</pre>
+  <div class="callout gotcha"><span class="tag">Gotcha</span><p>The C library has its own rules, and Rust can't check them. C's <code>abs(INT_MIN)</code> is undefined behaviour, so a safe wrapper must never pass it <code>i32::MIN</code>. That's Lab 6, step 3.</p></div>
+
+  <h2 id="speed">5. Speed and overflow</h2>
+  <p>Rust is fast, but only in release mode. A debug build skips optimization and adds checks, so it can be ten to fifty times slower. Never time a debug build.</p>
+  <pre data-lang="sh" data-title="terminal">cargo build --release            # target/release/, optimized
+cargo run --release --example bench</pre>
+  <p>To time something, run it several times and keep the best run, which is the one least disturbed by the rest of the computer. <code>std::hint::black_box</code> stops the optimizer from deleting work whose answer nobody uses:</p>
+  <pre data-run>use std::hint::black_box;
+use std::time::Instant;
+
+fn vowels(text: &amp;str) -&gt; usize {
+    text.bytes()
+        .filter(|b| matches!(b.to_ascii_lowercase(), b'a' | b'e' | b'i' | b'o' | b'u'))
+        .count()
+}
+
+fn main() {
+    let text = "Robbie oils his elbows again. ".repeat(10_000);
+    let mut best = u128::MAX;
+    for _ in 0..10 {
+        let start = Instant::now();
+        black_box(vowels(black_box(&amp;text))); // stop the optimizer skipping the work
+        best = best.min(start.elapsed().as_micros());
+    }
+    println!(
+        "{} vowels, best of 10 runs: {best} microseconds",
+        vowels(&amp;text)
+    );
+}</pre>
+  <p>Numbers have edges. A debug build panics when arithmetic overflows; a release build quietly wraps around. Say what you want instead:</p>
+  <p class="muted">Compiles, then panics on purpose. Press Run and read the message.</p>
+  <pre data-run>fn main() {
+    let battery: u8 = 250;
+    let boost: u8 = std::hint::black_box(10);
+    println!("checked:    {:?}", battery.checked_add(boost)); // None
+    println!("saturating: {}", battery.saturating_add(boost)); // 255
+    println!("wrapping:   {}", battery.wrapping_add(boost)); // 4
+    println!("plain +:    {}", battery + boost); // panics in debug builds
+}</pre>
+  <div class="callout mnemonic"><span class="tag">Remember this</span><p><b>checked_ asks, saturating_ stops, wrapping_ loops.</b> <code>checked_add</code> gives <code>None</code> at the edge, <code>saturating_add</code> stays at the limit, <code>wrapping_add</code> goes round on purpose.</p></div>
+
+  <h2 id="wasm">6. WebAssembly</h2>
+  <p><b>WebAssembly</b> (wasm) is a compact instruction set that every browser can run at near-native speed. Rust compiles to it directly, and with no garbage collector to ship, the files are small. <code>wasm-bindgen</code> writes the glue between Rust and JavaScript, and <code>wasm-pack</code> runs the whole build:</p>
+  <pre data-lang="sh" data-title="terminal">rustup target add wasm32-unknown-unknown
+cargo install wasm-pack
+wasm-pack build --target web</pre>
+  <pre data-lang="toml" data-title="Cargo.toml">[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wasm-bindgen = "0.2"</pre>
+  <pre data-lang="rust" data-title="src/web.rs">use wasm_bindgen::prelude::*;
+
+#[wasm_bindgen]
+pub fn run_mission_json(mission: &amp;str) -&gt; String {
+    match robbie_mc::Mission::from_json(mission).and_then(|m| robbie_mc::run_mission(&amp;m)) {
+        Ok(report) =&gt; report.to_json(),
+        Err(e) =&gt; format!("{{\"error\": \"{e}\"}}"),
+    }
+}</pre>
+  <p>Threads don't exist in a plain browser build, so a wasm build uses <code>run_mission</code>, not <code>run_fleet</code>. Try the course's <a href="arena.html">Robbie Arena</a> to see missions run in the browser.</p>
+
+  <h2 id="publish">7. Docs and publishing</h2>
+  <p>A <code>///</code> comment documents the item below it, and <code>//!</code> documents the whole module or crate. Code inside <code>```</code> in a doc comment is a real test: <code>cargo test</code> runs it, so your docs can't go out of date.</p>
+  <pre data-run>/// Robbie's battery after a number of steps. Never goes below zero.
+///
+/// ```
+/// assert_eq!(battery_after(20, 5), 15);
+/// assert_eq!(battery_after(3, 10), 0);
+/// ```
+pub fn battery_after(start: u32, steps: u32) -&gt; u32 {
+    start.saturating_sub(steps)
+}
+
+fn main() {
+    println!("{}", battery_after(20, 5));
+}</pre>
+  <p>To publish to <a href="https://crates.io">crates.io</a>, the <code>[package]</code> section needs a description and a license, and should have a repository and keywords:</p>
+  <pre data-lang="toml" data-title="Cargo.toml">[package]
+name = "ship_it"
+version = "0.1.0"
+edition = "2024"
+description = "Robbie gets ready to ship"
+license = "MIT"
+repository = "https://github.com/you/ship_it"
+keywords = ["robot", "teaching"]</pre>
+  <pre data-lang="sh" data-title="terminal">cargo doc --open            # your docs, as a website
+cargo test --doc            # run just the doc examples
+cargo publish --dry-run     # pack and check everything, upload nothing
+cargo publish               # for real, and forever</pre>
+  <div class="callout gotcha"><span class="tag">Gotcha</span><p>Publishing is permanent. You can <b>yank</b> a version so new projects don't pick it up, but you can never delete it. Version numbers follow semver: <code>0.1.1</code> for a fix, <code>0.2.0</code> for a breaking change (until 1.0).</p></div>
+
+  <h2 id="review">8. Code review</h2>
+  <p>Fifteen of the final project's points are a code review. The grader flags lines worth a look, and a person decides. What reviewers look for:</p>
+  <ul>
+    <li><b>Errors, not crashes.</b> <code>unwrap</code>, <code>expect</code> and indexing that can go out of bounds don't belong in library code. Return a <code>Result</code>.</li>
+    <li><b>Ownership that fits.</b> <code>.clone()</code> on every line usually means the design is fighting the borrow checker. Borrow where you can.</li>
+    <li><b>Structure.</b> Small functions, one job each, one <code>match</code> per enum rather than the same check copied in five places.</li>
+    <li><b>Names.</b> <code>parts_left</code>, not <code>n</code>. <code>start</code>, not <code>tmp</code>.</li>
+    <li><b>unsafe with a SAFETY comment</b>, or no unsafe at all.</li>
+  </ul>
+  <p>Run the grader, then drop its <code>grade.json</code> on the <a href="../../review-lab.html">Review Lab</a> page to see every flag with a plain-English explanation.</p>
+  <div class="callout mnemonic"><span class="tag">Remember this</span><p><b>A good review comment says what, where and why.</b> "<code>world.rs:40</code> unwraps the first row, which panics on an empty map" helps. "Bad code" doesn't.</p></div>
+
+  <h2 id="errors">9. Error field guide</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Error</th><th>What it means</th><th>Usual fix</th></tr></thead>
+    <tbody>
+      <tr><td>no rules expected this token</td><td>No macro arm has that shape</td><td>Add an arm, or change the call</td></tr>
+      <tr><td><code>E0133</code></td><td>A raw pointer followed, or an unsafe function called, outside <code>unsafe</code></td><td>An <code>unsafe</code> block with a SAFETY comment, or a safe function</td></tr>
+      <tr><td><code>E0499</code></td><td>Two <code>&amp;mut</code> borrows of the same thing at once</td><td><code>split_at_mut</code>, or one borrow at a time</td></tr>
+      <tr><td>extern blocks must be unsafe</td><td>Rust 2024 wants <code>unsafe extern "C"</code></td><td>Add <code>unsafe</code></td></tr>
+      <tr><td>attempt to add with overflow</td><td>Arithmetic went past a number's edge in a debug build</td><td><code>checked_</code>, <code>saturating_</code> or <code>wrapping_</code></td></tr>
+      <tr><td>missing description/license (publish)</td><td>crates.io needs package metadata</td><td>Fill in <code>[package]</code></td></tr>
+    </tbody>
+  </table></div>
+
+  <h2 id="cheat">Cheat sheet</h2>
+  <pre data-lang="rust" data-title="Session 6 on one screen">macro_rules! name { () =&gt; {..}; ($x:expr) =&gt; {..}; ($($x:expr),* $(,)?) =&gt; {..} }
+$x:expr  ident  ty  literal  tt        $( .. ),*  zero or more   $( .. ),+  one or more
+$crate::name!(..)                      // call your own macro from inside it
+
+let p = &amp;x as *const i32;              // safe to make
+unsafe { *p }                          // unsafe to follow
+// SAFETY: why every rule holds here   // on every unsafe block
+std::slice::from_raw_parts_mut(ptr, len)    ptr.add(n)    v.as_mut_ptr()
+v.split_at_mut(mid)                    // the safe way to get two &amp;mut halves
+
+unsafe extern "C" { safe fn abs(x: i32) -&gt; i32; fn strlen(s: *const c_char) -&gt; usize; }
+c"robbie": &amp;CStr       CString::new("x")?       s.as_ptr()       #[repr(C)]
+#[unsafe(no_mangle)] pub extern "C" fn f(..) {..}     crate-type = ["cdylib"]
+
+cargo run --release        Instant::now()  .elapsed()       std::hint::black_box(x)
+a.checked_add(b) -&gt; Option   a.saturating_sub(b)   a.wrapping_add(b)
+
+wasm-pack build --target web          #[wasm_bindgen] pub fn f(..) -&gt; String
+
+/// doc comment with ``` example ``` (a test)      //! crate docs
+cargo doc --open    cargo test --doc    cargo publish --dry-run</pre>
+
+  <h2 id="practice">Practice questions</h2>
+  <details><summary>1. Why is <code>println!</code> a macro and not a function?</summary><p>It takes any number of arguments, and checks the format string against them while compiling. A Rust function can't do either.</p></details>
+  <details><summary>2. In a macro pattern, what does <code>$($x:expr),*</code> match?</summary><p>Zero or more expressions separated by commas, each captured as <code>$x</code>.</p></details>
+  <details><summary>3. Does <code>unsafe</code> turn off the borrow checker?</summary><p>No. It only unlocks five extra abilities, like following a raw pointer and calling unsafe functions. Every other check still runs.</p></details>
+  <details><summary>4. Making a raw pointer is safe. Why is following one unsafe?</summary><p>The compiler can't prove the pointer still points at a live value of the right type, so you have to promise it.</p></details>
+  <details><summary>5. What should every <code>unsafe</code> block have above it?</summary><p>A <code>// SAFETY:</code> comment explaining why every rule the unsafe operation needs holds at that spot.</p></details>
+  <details><summary>6. You need two <code>&amp;mut</code> halves of one slice. What do you reach for first?</summary><p><code>split_at_mut</code>, the safe standard function. Only write raw-pointer code if no safe function does the job.</p></details>
+  <details><summary>7. Why is <code>abs</code> from C not completely safe to call with any <code>i32</code>?</summary><p>C's <code>abs(INT_MIN)</code> is undefined behaviour, because the positive answer doesn't fit. A safe wrapper must rule that input out.</p></details>
+  <details><summary>8. Why time code with <code>--release</code>?</summary><p>Debug builds aren't optimized and include extra checks, so their timings don't tell you how fast the real program is.</p></details>
+  <details><summary>9. What do <code>250u8.checked_add(10)</code> and <code>250u8.saturating_add(10)</code> give?</summary><p><code>None</code> and <code>255</code>.</p></details>
+  <details><summary>10. Why do the examples in your doc comments matter for publishing?</summary><p><code>cargo test</code> runs them, so the documentation is checked every time and can't quietly go out of date.</p></details>
+
+  <h2 id="final">The final project: Robbie Mission Control</h2>
+  <p>Your final project is a library and command-line app that loads a grid world and a crew of Robbies, runs each bot's script, alone or as a fleet on threads, and prints a mission report. It uses everything from the course. The full brief is on the <a href="final.html">final project page</a>, and the spec is in <code>final/robbie-mc/README.md</code>.</p>
+  <pre data-lang="sh" data-title="terminal">cd final/robbie-mc
+cargo test                       # 12 visible tests, plus your own
+cargo run -- missions/studio.json --fleet
+cd ../.. &amp;&amp; cargo run --release --manifest-path grader/Cargo.toml -- check final</pre>
+  <div class="callout robbie"><img src="../../assets/img/robbie-face.jpg" alt=""><div><span class="tag">Robbie says</span>
+    <p>Hints: write <code>World::parse</code> and <code>parse_script</code> first, with tests, because everything else stands on them. Keep <code>Bot::run</code> one <code>match</code> on the command. And on exam day there'll be two new things to add, so keep your enums easy to extend. I'm not saying what. I'm rusty, not careless.</p>
+  </div></div>
+
+  <footer class="site"><a href="index.html">Back to Session 6</a> · <a href="quiz.html">Take Quiz 6</a> · <a href="final.html">Final project</a></footer>
+</main>
+
+<script>
+window.ROBBIE_PAGE = {
+  "greeting": "Session 6 handbook, the last one. Macros, unsafe, C, speed, the web and shipping. Tap me if something won't compile.",
+  "tips": [
+    "Macro won't match? Read your arms like a match statement, top to bottom.",
+    "No SAFETY comment, no unsafe block.",
+    "Benchmarks belong in --release. Always."
+  ],
+  "eli5": [
+    "A macro is a stamp that prints code before the compiler reads it.",
+    "FFI is Rust and C passing notes in a language they both speak.",
+    "WebAssembly is a way to send your program to a browser in a small, fast box."
+  ],
+  "hype": [
+    "You can now read almost any Rust codebase out there. That's the goal.",
+    "Finish the final and you've shipped a real, tested, threaded Rust app. In three weeks."
+  ]
+};
+</script>
+<script src="../../assets/js/course.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="../../assets/js/site.js"></script>
+<script src="../../assets/js/robbie.js"></script>
+<script type="module" src="../../assets/js/robbie3d.js"></script>
+</body>
+</html>

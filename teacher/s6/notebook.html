@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Session 6 Teacher Notebook</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=IBM+Plex+Sans:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../docs/assets/css/site.css">
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/" } }</script>
+</head>
+<body data-base="../../docs" data-page="s6-notebook" data-rust="5">
+<header class="topbar" data-crumbs='[{"t": "Course map", "href": "../../docs/index.html"}, {"t": "Session 6", "href": "../../docs/sessions/s6/index.html"}, {"t": "Teacher&#39;s Notebook"}]'></header>
+
+<main class="read">
+  <div class="doc-head">
+    <p class="eyebrow">Teacher's Notebook · Session 6 and exam day</p>
+    <h1>Ship It</h1>
+    <div class="meta"><span>Session length: 2.5 hours</span><span>Prep: 45 minutes</span><span>Contains all answers</span></div>
+  </div>
+
+  <nav class="toc" aria-label="Contents"><b>Contents</b><ol>
+    <li><a href="#goals">Learning goals</a></li><li><a href="#prep">Before class</a></li><li><a href="#plan">Run of show</a></li>
+    <li><a href="#deep">Deeper notes by topic</a></li><li><a href="#mistakes">Mistakes to expect</a></li><li><a href="#lab">Lab solution</a></li>
+    <li><a href="#final">Final project</a></li><li><a href="#exam">Exam day</a></li><li><a href="#grading">Grading the final</a></li>
+    <li><a href="#key">Quiz 6 answer key</a></li><li><a href="#extend">Extensions</a></li>
+  </ol></nav>
+
+  <h2 id="goals">Learning goals</h2>
+  <p>By the end of Session 6 a student can:</p>
+  <ol>
+    <li>Write a <code>macro_rules!</code> macro with several arms, repetition and recursion, and read a "no rules expected" error.</li>
+    <li>Name what <code>unsafe</code> unlocks and what it doesn't, and write a <code>// SAFETY:</code> comment that argues each rule.</li>
+    <li>Wrap a small unsafe core in a safe function, and find the standard library's safe version first.</li>
+    <li>Call C functions through an <code>unsafe extern "C"</code> block, and pass strings with <code>CStr</code> and <code>CString</code>.</li>
+    <li>Benchmark honestly: release builds, <code>black_box</code>, best of several runs.</li>
+    <li>Choose <code>checked_</code>, <code>saturating_</code> or <code>wrapping_</code> arithmetic on purpose.</li>
+    <li>Explain how Rust reaches the browser through WebAssembly, and prepare a crate for <code>cargo publish</code>.</li>
+    <li>Review code against a rubric and write comments that say what, where and why.</li>
+  </ol>
+
+  <h2 id="prep">Before class</h2>
+  <ul>
+    <li>Grade Homework 5 with the grader (<code>check hw5</code> plus <code>--hidden teacher/grading/hw5-hidden-tests.rs</code>). Pick one student test that states a rule well to show on slide 18.</li>
+    <li>Run <code>cargo test</code> in <code>labs/lab6-final-build</code> and <code>final/robbie-mc</code> once on the room's machines. Lab 6 needs no crates; the final project needs serde, so download it before twenty laptops try at once.</li>
+    <li>Check the C calls work on Windows laptops too: <code>abs</code> and <code>strlen</code> are in every C runtime, so <code>cargo test step3</code> should pass everywhere. If one doesn't link, pair that student up for step 3.</li>
+    <li>Open the <a href="../../docs/sessions/s6/arena.html">Robbie Arena</a> on the projector with the studio mission loaded. Slide 21 hands over to it.</li>
+    <li>Print <code>teacher/final/exam-day.md</code> for exam day, one per student. Like every answer in <code>teacher/</code>, it's readable in the public repo, so if the features must stay a surprise, keep <code>teacher/</code> in a private repo for your cohort.</li>
+  </ul>
+
+  <h2 id="plan">Run of show</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Time</th><th>Slides</th><th>Do</th></tr></thead>
+    <tbody>
+      <tr><td>0:00</td><td>1 to 3</td><td>Intro, Robbie at 95% rust, Homework 5 review (10 minutes), the big idea: today is the edges, used on purpose.</td></tr>
+      <tr><td>0:10</td><td>4 to 6</td><td>Macros: arms, repetition, recursion, and the no-match error. Live-code <code>beep!</code> with the room.</td></tr>
+      <tr><td>0:30</td><td>7 to 10</td><td><code>unsafe</code>: the five powers, the E0133 demo, SAFETY comments, the E0499 split and its safe wrapper.</td></tr>
+      <tr><td>0:50</td><td>11 to 13</td><td>FFI: calling <code>abs</code> and <code>strlen</code>, <code>safe fn</code>, C strings, exporting a Rust function.</td></tr>
+      <tr><td>1:05</td><td></td><td>Break, 10 minutes.</td></tr>
+      <tr><td>1:15</td><td>14 to 15</td><td>Benchmarks in release mode with <code>black_box</code>; overflow, and the three arithmetic families.</td></tr>
+      <tr><td>1:25</td><td>16 to 19</td><td>WebAssembly, publishing, code review, the error field guide.</td></tr>
+      <tr><td>1:45</td><td>20</td><td>Lab: the Final Build Lab, 30 minutes.</td></tr>
+      <tr><td>2:15</td><td>21 to 23</td><td>Quiz 6 (10 minutes), the final project kickoff with the Arena, recap.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2 id="deep">Deeper notes by topic</h2>
+  <h3>Macros</h3>
+  <p>Teach a macro as a <code>match</code> on code: the arms are patterns, the fragments (<code>expr</code>, <code>ident</code>, <code>ty</code>, <code>tt</code>) are the bindings. Then say plainly when not to write one: a function or a generic function first, a macro only when you need a variable number of arguments or new syntax. Skip procedural macros beyond one sentence; students have used <code>#[derive]</code> since Session 3, and that's enough to know they exist.</p>
+  <h3>unsafe</h3>
+  <p>The single most important sentence: <b>unsafe doesn't switch any check off.</b> The borrow checker, types and bounds checks all still run. It unlocks five powers (dereferencing raw pointers, calling unsafe functions, implementing unsafe traits, touching mutable statics, reading union fields) and the programmer takes on the proof. Undefined behaviour gets no error message, which is why the SAFETY comment is a rule, not a style point. Rust 2024 also requires <code>unsafe extern</code> and <code>#[unsafe(no_mangle)]</code>; older tutorials online won't have them.</p>
+  <h3>Safe wrappers</h3>
+  <p>Slides 9 and 10 are the pattern the whole standard library uses. Have students find <code>split_at_mut</code> in the std docs and click [src]: it's the same few lines as the slide. Point out that the wrapper's signature carries the proof: the two returned slices borrow from <code>items</code>, so the borrow checker keeps every caller honest.</p>
+  <h3>FFI</h3>
+  <p>Keep it to the C standard library, so nothing needs installing. The C string rule (a 0 byte at the end) is where people get hurt, so spend the time there: <code>CString::new</code> fails if there's a 0 byte inside, and <code>c"..."</code> literals make a <code>&amp;CStr</code> with no allocation. <code>abs(INT_MIN)</code> is the example of a C function whose own rules Rust can't see.</p>
+  <h3>Speed and overflow</h3>
+  <p>The benchmark slide runs on the Playground in debug mode on purpose, so the room sees how misleading that is; then run Lab 6's <code>examples/bench.rs</code> with <code>--release</code>. For overflow, debug builds panic and release builds wrap, which surprises everyone once. The three method families make the intent visible in code.</p>
+  <h3>WebAssembly and publishing</h3>
+  <p>Ten minutes, no live build: the wasm target isn't installed on every machine and the download is large. The Arena is the demo. For publishing, the dry run is the whole lesson; the Lab 6 step 5 test checks the <code>Cargo.toml</code> fields, and nobody publishes for real.</p>
+  <h3>Code review</h3>
+  <p>Read one real Homework 5 submission together (with permission, or your own). Ask the room for comments that say what, where and why, and write them on the board. The Review Lab rubric is the same five headings students will be scored on.</p>
+
+  <h2 id="mistakes">Mistakes to expect</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>You'll see</th><th>What's going on</th><th>Nudge</th></tr></thead>
+    <tbody>
+      <tr><td><code>beep!</code> arm never matches</td><td>Arms are tried top to bottom, and a broad arm is above a narrow one</td><td>"Which arm does Rust try first?"</td></tr>
+      <tr><td><code>loudest!</code>: "recursion limit reached"</td><td>The recursive arm can match a single item, so it never stops</td><td>Make it need a comma and at least one more: <code>$x:expr, $($rest:expr),+</code></td></tr>
+      <tr><td><code>split_halves</code> with two <code>&amp;mut items[..]</code></td><td>E0499, the slide 9 error</td><td>"What does <code>as_mut_ptr</code> give you?"</td></tr>
+      <tr><td>Off by one in the second half</td><td><code>len - mid</code> written as <code>mid</code></td><td>Test with an odd length; the step 2 tests use 3</td></tr>
+      <tr><td><code>c_abs(i32::MIN)</code> test fails</td><td>Passed straight to C</td><td>Return <code>None</code> first. Read the lab rule again</td></tr>
+      <tr><td><code>c_strlen</code> takes <code>&amp;str</code></td><td>No 0 byte at the end</td><td>Take <code>&amp;CStr</code>, call <code>as_ptr()</code></td></tr>
+      <tr><td>Benchmark says the two counters are equal</td><td>Debug build, or the optimiser removed the work</td><td><code>--release</code>, and <code>black_box</code> the input</td></tr>
+      <tr><td>Step 5 fails on <code>CARGO_PKG_LICENSE</code></td><td>Field added but <code>cargo test</code> still sees the old build</td><td>It rebuilds on its own; check the spelling: <code>license = "MIT OR Apache-2.0"</code></td></tr>
+    </tbody>
+  </table></div>
+
+  <h2 id="lab">Lab solution: the Final Build Lab</h2>
+  <p>The full file is <code>teacher/s6/lab6-solution-lib.rs</code>; drop it in as <code>labs/lab6-final-build/src/lib.rs</code>, fill the five <code>[package]</code> fields, and all nine tests and seven doc tests pass, with clippy clean and <code>cargo publish --dry-run</code> working.</p>
+  <pre data-lang="rust" data-title="teacher/s6/lab6-solution-lib.rs">//! Lab 6: the Final Build Lab.
+//!
+//! Five small jobs that get Robbie ready to ship: a macro, an unsafe helper
+//! with a safe wrapper, two calls into the C library, a stopwatch for
+//! benchmarks, and documentation good enough to publish.
+
+use std::ffi::CStr;
+use std::time::{Duration, Instant};
+
+/// Step 1. Robbie's beep, as a macro.
+///
+/// `beep!()` is one beep. `beep!(3)` is three, with spaces between.
+/// `beep!(2, "boop")` repeats any word.
+///
+/// ```
+/// use ship_it::beep;
+/// assert_eq!(beep!(), "beep");
+/// assert_eq!(beep!(3), "beep beep beep");
+/// assert_eq!(beep!(2, "boop"), "boop boop");
+/// ```
+#[macro_export]
+macro_rules! beep {
+    () =&gt; {
+        String::from("beep")
+    };
+    ($n:expr) =&gt; {
+        $crate::beep!($n, "beep")
+    };
+    ($n:expr, $word:expr) =&gt; {
+        vec![$word; $n].join(" ")
+    };
+}
+
+/// Step 1, part 2. The largest of any number of values, worked out at
+/// compile time into a chain of `max` calls.
+///
+/// ```
+/// use ship_it::loudest;
+/// assert_eq!(loudest!(3), 3);
+/// assert_eq!(loudest!(3, 9, 4), 9);
+/// ```
+#[macro_export]
+macro_rules! loudest {
+    ($x:expr) =&gt; {
+        $x
+    };
+    ($x:expr, $($rest:expr),+ $(,)?) =&gt; {
+        std::cmp::max($x, $crate::loudest!($($rest),+))
+    };
+}
+
+/// Step 2. Splits a slice into two halves you can change at the same time.
+/// For an odd length, the extra item goes in the second half.
+///
+/// The borrow checker won't let you take two `&amp;mut` from one slice, even
+/// when they can't overlap, so this uses raw pointers inside `unsafe`.
+///
+/// ```
+/// let mut readings = [1, 2, 3, 4, 5];
+/// let (front, back) = ship_it::split_halves(&amp;mut readings);
+/// front[0] = 10;
+/// back[0] = 30;
+/// assert_eq!(readings, [10, 2, 30, 4, 5]);
+/// ```
+pub fn split_halves(items: &amp;mut [u32]) -&gt; (&amp;mut [u32], &amp;mut [u32]) {
+    let len = items.len();
+    let mid = len / 2;
+    let ptr = items.as_mut_ptr();
+    // SAFETY: `ptr` is valid for `len` items because it came from `items`.
+    // The first slice covers 0..mid and the second mid..len, so they never
+    // overlap, and both live no longer than the `items` borrow they came from.
+    unsafe {
+        (
+            std::slice::from_raw_parts_mut(ptr, mid),
+            std::slice::from_raw_parts_mut(ptr.add(mid), len - mid),
+        )
+    }
+}
+
+unsafe extern "C" {
+    /// `abs` from the C standard library.
+    fn abs(x: i32) -&gt; i32;
+    /// `strlen` from the C standard library.
+    fn strlen(s: *const std::ffi::c_char) -&gt; usize;
+}
+
+/// Step 3. The C library's `abs`, behind a safe Rust function.
+///
+/// C's `abs(INT_MIN)` is undefined behaviour, so that one input gets `None`
+/// instead of ever reaching C.
+///
+/// ```
+/// assert_eq!(ship_it::c_abs(-7), Some(7));
+/// assert_eq!(ship_it::c_abs(i32::MIN), None);
+/// ```
+pub fn c_abs(x: i32) -&gt; Option&lt;i32&gt; {
+    if x == i32::MIN {
+        return None;
+    }
+    // SAFETY: abs has no preconditions apart from INT_MIN, ruled out above.
+    Some(unsafe { abs(x) })
+}
+
+/// Step 3, part 2. The C library's `strlen` on a C string.
+///
+/// ```
+/// assert_eq!(ship_it::c_strlen(c"robbie"), 6);
+/// ```
+pub fn c_strlen(s: &amp;CStr) -&gt; usize {
+    // SAFETY: a &amp;CStr always points at valid memory that ends in a 0 byte,
+    // which is exactly what strlen needs.
+    unsafe { strlen(s.as_ptr()) }
+}
+
+/// Step 4. Runs `job` `runs` times and returns the fastest single run.
+/// `runs` of 0 counts as 1. The fastest run is the one least disturbed by
+/// whatever else the computer was doing.
+///
+/// ```
+/// let best = ship_it::time_it(3, || {
+///     std::hint::black_box(2 + 2);
+/// });
+/// assert!(best &lt; std::time::Duration::from_secs(1));
+/// ```
+pub fn time_it&lt;F: FnMut()&gt;(runs: u32, mut job: F) -&gt; Duration {
+    let mut best = Duration::MAX;
+    for _ in 0..runs.max(1) {
+        let start = Instant::now();
+        job();
+        best = best.min(start.elapsed());
+    }
+    best
+}
+
+/// Counts vowels by walking the `char`s. Given to you for the benchmark.
+pub fn vowels_chars(text: &amp;str) -&gt; usize {
+    text.chars()
+        .filter(|c| matches!(c.to_ascii_lowercase(), 'a' | 'e' | 'i' | 'o' | 'u'))
+        .count()
+}
+
+/// Counts vowels by walking the bytes. Given to you for the benchmark.
+pub fn vowels_bytes(text: &amp;str) -&gt; usize {
+    text.bytes()
+        .filter(|b| matches!(b.to_ascii_lowercase(), b'a' | b'e' | b'i' | b'o' | b'u'))
+        .count()
+}
+
+/// Step 5. A one-line status for the crate, read from `Cargo.toml` when it
+/// was built: `"ship_it 0.1.0: &lt;description&gt;"`.
+///
+/// ```
+/// assert!(ship_it::status().starts_with("ship_it 0.1.0: "));
+/// ```
+pub fn status() -&gt; String {
+    format!(
+        "{} {}: {}",
+        env!("CARGO_PKG_NAME"),
+        env!("CARGO_PKG_VERSION"),
+        env!("CARGO_PKG_DESCRIPTION")
+    )
+}
+</pre>
+  <p>Praise: a SAFETY comment that argues each rule; <code>c_abs</code> checking <code>i32::MIN</code> before the call; <code>time_it</code> guarding <code>runs.max(1)</code>. Redirect: <code>unsafe</code> leaking into a caller, and benchmarks run without <code>--release</code>.</p>
+
+  <h2 id="final">Final project: Robbie Mission Control</h2>
+  <p>Students get <code>final/robbie-mc</code>: every type, signature and doc comment written, every body a <code>todo!()</code>, 12 visible tests, and a README that is the spec. The student page is <a href="../../docs/sessions/s6/final.html">final.html</a>. Reference files:</p>
+  <ul>
+    <li><code>teacher/final/solution/</code>: the full base solution. Copy its files into a student's <code>src/</code> to check anything.</li>
+    <li><code>teacher/final/solution-mine.rs</code>: 11 example student tests, each testing one rule.</li>
+    <li><code>teacher/grading/final-hidden-tests.rs</code>: 17 hidden tests covering every rule and error, the check order, and fleet totals matching the one-at-a-time run.</li>
+    <li><code>teacher/final/exam-day.md</code>, <code>teacher/final/exam-day-solution/</code> and <code>teacher/grading/final-examday-tests.rs</code>: exam day.</li>
+  </ul>
+  <p>Hold one office-hours slot in the week between. The common stuck points are <code>run_fleet</code> (lock per command, join every handle) and the check order in <code>prepare</code>. Point them at the Arena: when their output differs, Step finds the exact command.</p>
+
+  <h2 id="exam">Exam day</h2>
+  <p>The class after Session 6. Students don't know the features in advance; the student page only says they add to the map and the command language and touch <code>Bot::run</code>.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Time</th><th>Do</th></tr></thead>
+    <tbody>
+      <tr><td>0:00</td><td>Everyone runs <code>check final</code> on their own project and commits. That commit is the hand-in.</td></tr>
+      <tr><td>0:15</td><td>Hand out <code>exam-day.md</code>: charging pads (tile <code>C</code>, refills the battery when a bot moves onto one) and the <code>drop</code> command.</td></tr>
+      <tr><td>0:20</td><td>60 minutes of coding. Their own notes, the handbooks and the std docs are allowed; asking each other isn't.</td></tr>
+      <tr><td>1:20</td><td>Commit again. Break, 10 minutes.</td></tr>
+      <tr><td>1:30</td><td>Show and tell: three volunteers demo a mission with chargers in the terminal. Then a retro: what they'd design differently.</td></tr>
+      <tr><td>2:00</td><td>Quiz scores, certificates and next steps: the Rust Book's later chapters, Rustlings, and a crate of their own.</td></tr>
+    </tbody>
+  </table></div>
+  <p>The whole answer is about 15 lines in three files. Here is <code>Bot::run</code> with both features:</p>
+  <pre data-lang="rust" data-title="teacher/final/exam-day-solution/bot.rs">    pub fn run(&amp;mut self, world: &amp;mut World, cmd: Command) {
+        if self.flat {
+            return;
+        }
+        match cmd {
+            Command::Forward(n) =&gt; {
+                for _ in 0..n {
+                    if self.battery == 0 {
+                        self.flat = true;
+                        return;
+                    }
+                    self.battery -= 1;
+                    match self.ahead(world) {
+                        Some((nx, ny)) if world.tile(nx, ny) != Some(Tile::Wall) =&gt; {
+                            self.x = nx;
+                            self.y = ny;
+                            self.steps += 1;
+                            if world.tile(nx, ny) == Some(Tile::Charger) {
+                                self.battery = self.capacity;
+                            }
+                        }
+                        _ =&gt; {
+                            self.bumps += 1;
+                            return;
+                        }
+                    }
+                }
+            }
+            Command::Left =&gt; self.facing = self.facing.left(),
+            Command::Right =&gt; self.facing = self.facing.right(),
+            Command::Pick =&gt; {
+                if world.tile(self.x, self.y) == Some(Tile::Part) {
+                    world.set(self.x, self.y, Tile::Floor);
+                    self.parts += 1;
+                }
+            }
+            Command::Wait =&gt; {}
+            Command::Drop =&gt; {
+                if self.parts &gt; 0 &amp;&amp; world.tile(self.x, self.y) == Some(Tile::Floor) {
+                    world.set(self.x, self.y, Tile::Part);
+                    self.parts -= 1;
+                }
+            }
+        }
+    }</pre>
+
+  <h2 id="grading">Grading the final</h2>
+  <pre data-lang="sh" data-title="terminal"># from the course folder, for each student's copy of final/robbie-mc
+cargo run --release --manifest-path grader/Cargo.toml -- path/to/student/robbie-mc \
+  --hidden teacher/grading/final-hidden-tests.rs \
+  --hidden teacher/grading/final-examday-tests.rs
+# then open its grade.json in the Review Lab, score the review, and run the
+# command the Review Lab writes, which adds --review N --stretch N</pre>
+  <p>Each hidden file is built and run on its own, so a student who didn't finish exam day loses those eight tests and nothing else. The exam-day reference solution, with the 11 example student tests, scores 85 of the 85 points the grader measures (all 25 hidden tests). The base solution without the exam-day features gets 72.2: its 17 base tests pass and the exam-day file doesn't compile.</p>
+  <h3>The code review, 15 points</h3>
+  <p>Use the <a href="../../docs/review-lab.html#review">Review Lab</a>: open the student's <code>grade.json</code>, read the flagged lines in their code, and score the five parts. It writes the grader command and feedback to paste.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Part</th><th>Points</th><th>Full marks look like</th></tr></thead>
+    <tbody>
+      <tr><td>Errors, not panics</td><td>4</td><td>Every problem is an <code>McError</code>. No <code>unwrap</code> or indexing that can panic on input in <code>src/</code>.</td></tr>
+      <tr><td>Ownership</td><td>3</td><td>Borrows where it can, clones with a reason, the fleet's lock held for one command.</td></tr>
+      <tr><td>Structure</td><td>3</td><td>Each idea in one place; <code>Bot::run</code> one <code>match</code>; exam-day features went in cleanly.</td></tr>
+      <tr><td>Naming and readability</td><td>3</td><td>Clear names, no dead code, functions that fit on a screen.</td></tr>
+      <tr><td>Tests that test rules</td><td>2</td><td>Each test in <code>tests/mine.rs</code> checks a named rule.</td></tr>
+    </tbody>
+  </table></div>
+  <p>The course grade: quizzes 15%, homework 25%, checkpoints 20%, final 40%. 90% or more earns the Rustacean certificate; the Review Lab's calculator shows it on screen.</p>
+
+  <h2 id="key">Quiz 6 answer key</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>#</th><th>Answer</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><b>Compile error: no rule of squeak! takes an argument</b></td><td>A macro matches what you pass against each arm. The only arm is (), so squeak!(3) has nothing to match and the build stops.</td></tr>
+      <tr><td>2</td><td><b>3</b></td><td>Each call peels one item off and adds 1: 1 + 1 + 1 + count!() = 1 + 1 + 1 + 0.</td></tr>
+      <tr><td>3</td><td><b>println!("{}", *p); (reading through the pointer)</b></td><td>Making a raw pointer and printing it are safe. Reading through it is one of unsafe's five powers, so it's E0133 without unsafe.</td></tr>
+      <tr><td>4</td><td><b>Nothing. It unlocks five extra powers, and you promise you used them correctly</b></td><td>Every normal check still runs inside unsafe. It only allows things like raw pointer reads and unsafe calls, and the SAFETY comment says why they're fine.</td></tr>
+      <tr><td>5</td><td><b>Rust only sees two &amp;mut borrows of joints at once, not which parts they cover</b></td><td>The borrow checker reasons about joints as a whole. split_at_mut(2) gives both halves safely, because std did the unsafe part once and checked it.</td></tr>
+      <tr><td>6</td><td><b>Write unsafe { abs(-12) }, or declare it as safe fn abs inside the block</b></td><td>Rust can't check C code, so calling a foreign function is unsafe unless you mark it safe fn and take on that promise.</td></tr>
+      <tr><td>7</td><td><b>A &amp;str has no 0 byte at the end, so C wouldn't know where it stops</b></td><td>C strings end at a 0 byte. CString (owned) and &amp;CStr (borrowed) guarantee it, and c"robbie" makes a &amp;CStr literal.</td></tr>
+      <tr><td>8</td><td><b>None 255</b></td><td>checked_add says None when 250 + 10 won't fit in a u8. saturating_add stops at the top, 255.</td></tr>
+      <tr><td>9</td><td><b>So the optimiser can't work out the answer ahead of time and skip the work</b></td><td>In a release build the compiler may compute a constant answer and delete the loop. black_box hides the value so the work really runs. Time in --release too.</td></tr>
+      <tr><td>10</td><td><b>rustup target add wasm32-unknown-unknown</b></td><td>wasm32-unknown-unknown is the browser target. wasm-bindgen (or wasm-pack) then makes the JavaScript glue.</td></tr>
+      <tr><td>11</td><td><b>description and license in Cargo.toml</b></td><td>crates.io needs description and license (or license-file). repository, keywords and categories help people find it. The Lab 6 step 5 test checks them.</td></tr>
+      <tr><td>12</td><td><b>It calls .unwrap() on the JSON it was given</b></td><td>Input you were handed can be wrong, so a library returns the error instead of panicking. unwrap is fine in tests, not on someone else's data.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2 id="extend">Extensions for fast students</h2>
+  <ul>
+    <li>Lab: a third <code>beep!</code> arm that takes a list, then <code>split_halves</code> rewritten with <code>split_at_mut</code>.</li>
+    <li>Lab: export <code>robbie_battery_after</code> from slide 13 as a C library (<code>crate-type = ["cdylib"]</code>) and call it from Python's <code>ctypes</code>.</li>
+    <li>Final: one of the three stretch goals. The wasm one pairs well with the Arena, which shows exactly what to match.</li>
+    <li>Final: a <code>--trace</code> flag that prints every command and its result, like the Arena's log.</li>
+    <li>Write a <code>mission!</code> macro that builds a <code>Mission</code> from a map and bot list in Rust code, for tests.</li>
+  </ul>
+
+  <footer class="site"><a href="../../docs/sessions/s6/index.html">Session 6 hub</a> · <a href="../../docs/sessions/s6/presentation.html">Slides</a> · <a href="../../docs/sessions/s6/handbook.html">Handbook</a> · <a href="../../docs/sessions/s6/final.html">Final project</a></footer>
+</main>
+
+<script>
+window.ROBBIE_PAGE = {
+  "greeting": "Teacher's notebook for Session 6 and exam day. Every answer's here, including the exam-day features, so keep it far from the projector.",
+  "tips": [
+    "Say it early and often: unsafe switches nothing off. It only lets you make promises.",
+    "Print the exam-day handout. If the features must stay a surprise, keep the teacher folder in a private repo."
+  ],
+  "eli5": [
+    "A macro writes code, unsafe makes a promise, FFI talks to C, and wasm takes it all to the browser."
+  ],
+  "hype": [
+    "Last session. They came in not knowing what a borrow was. They leave reviewing each other's unsafe code."
+  ]
+};
+</script>
+<script src="../../docs/assets/js/course.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="../../docs/assets/js/site.js"></script>
+<script src="../../docs/assets/js/robbie.js"></script>
+<script type="module" src="../../docs/assets/js/robbie3d.js"></script>
+</body>
+</html>

@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Session 4: Teaching Robbie New Tricks</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=IBM+Plex+Sans:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../assets/css/site.css">
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/" } }</script>
+</head>
+<body data-base="../.." data-page="s4" data-rust="3">
+<header class="topbar" data-crumbs='[{"t": "Course map", "href": "../../index.html"}, {"t": "Session 4"}]'></header>
+<main class="wrap">
+  <section class="hero">
+    <div>
+      <div class="hero-num"><span class="num" aria-hidden="true">04</span><p class="eyebrow">Session 4 · Week 2 · Thursday</p></div>
+      <h1>Teaching Robbie <span class="r">New Tricks</span></h1>
+      <p class="lede">Collections, traits, generics, closures and iterators. By the end, one trait describes every bot in the studio, and a single iterator chain plans Robbie's whole shift.</p>
+      <div class="rustmeter" style="--lvl:50%;max-width:320px"><span>Robbie's rust</span><i></i><span>50% · joints first</span></div>
+      <div class="cta-row">
+        <a class="btn primary" href="presentation.html">Open the slides</a>
+        <a class="btn" href="handbook.html">Read the handbook</a>
+      </div>
+    </div>
+    <!-- Video-ready: add data-video="assets/video/<name>.mp4" to this figure and the loop plays over the still. -->
+    <figure class="hero-img" style="margin:0">
+      <img src="../../assets/img/robbie-rust-3.jpg" alt="Robbie v11 in the studio, half rust: knees, elbows, shoulders and every edge the rain runs off" width="800" height="1000">
+      <figcaption>Robbie at Session 4. Half rust, fully committed.</figcaption>
+    </figure>
+  </section>
+
+  <h2>Session materials</h2>
+  <div class="mats">
+    <a class="mat" href="presentation.html"><span class="kind">Presentation · 60 min</span><b>Slides</b><span>27 slides with runnable code, a few broken on purpose. Arrow keys to move, N for the teacher's speaker notes.</span></a>
+    <a class="mat" href="handbook.html#cheat"><span class="kind">Cheat sheet</span><b>One page, all of Session 4</b><span>Vec, HashMap, traits, generics, closures, the iterator toolbox and lifetimes on one screen.</span></a>
+    <a class="mat" href="handbook.html"><span class="kind">Student Handbook</span><b>Teaching Robbie New Tricks Handbook</b><span>Every idea from today with runnable examples, memory tricks, an error field guide and 10 practice questions.</span></a>
+    <a class="mat" href="quiz.html"><span class="kind">Quiz 4 · 15 min</span><b>Teaching Robbie New Tricks Quiz</b><span>12 questions, pass mark 70%. Your best score is saved in this browser.</span></a>
+  </div>
+
+  <h2>Build it</h2>
+  <div class="mats">
+    <a class="mat" href="https://github.com/c1t1zen1/RUSTUP/tree/main/labs/lab4-mission-planner"><span class="kind">Lab 4 · in class · 30 min</span><b>Robbie's Mission Planner</b><span>Five steps, nine tests: a to-do list, an hour of battery, and iterator chains instead of loops.</span></a>
+    <a class="mat" href="https://github.com/c1t1zen1/RUSTUP/tree/main/homework/hw4-bot-garage"><span class="kind">Homework 4 · due Session 5</span><b>Bot Garage</b><span>One trait for Robbie, a drone and a vacuum, a garage on a power budget, and two generic helpers. 8 visible tests plus hidden edge cases, scored out of 10.</span></a>
+  </div>
+
+  <h2>Topics</h2>
+  <ul id="topics" class="muted"></ul>
+
+  <div class="cta-row" style="margin-block:32px 48px">
+    <a class="btn" href="../../index.html">Back to the course map</a>
+  </div>
+</main>
+<script>
+window.ROBBIE_PAGE = {
+  "greeting": "Welcome to Session 4. I'm half rust, starting at the joints, so today I learn tricks that don't need knees. Traits, generics and iterators. Let's go.",
+  "tips": [
+    "Do the lab steps in order. Step 2's sort_by is the tricky one.",
+    "If you remember one thing: a trait is a promise, and a bound is where you ask for it."
+  ],
+  "eli5": [
+    "Today you teach different robots the same skill, and learn to describe a whole job as one tidy chain."
+  ],
+  "hype": [
+    "Session 4 is where Rust starts to feel elegant. Traits plus iterators is a great combo."
+  ]
+};
+</script>
+<script src="../../assets/js/course.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="../../assets/js/site.js"></script>
+<script>
+(function(){ var s = window.RUSTUP && RUSTUP.sessions[3]; var ul = document.getElementById("topics");
+  if (s && ul) ul.innerHTML = s.topics.map(function(t){ return "<li>" + t + "</li>"; }).join(""); })();
+</script>
+<script src="../../assets/js/robbie.js"></script>
+<script type="module" src="../../assets/js/robbie3d.js"></script>
+</body>
+</html>

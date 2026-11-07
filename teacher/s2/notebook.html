@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Session 2 Teacher Notebook</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=IBM+Plex+Sans:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../docs/assets/css/site.css">
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/" } }</script>
+</head>
+<body data-base="../../docs" data-page="s2-notebook" data-rust="1">
+<header class="topbar" data-crumbs='[{"t":"Course map","href":"../../docs/index.html"},{"t":"Session 2","href":"../../docs/sessions/s2/index.html"},{"t":"Teacher&#39;s Notebook"}]'></header>
+
+<main class="read">
+  <div class="doc-head">
+    <p class="eyebrow">Teacher's Notebook · Session 2</p>
+    <h1>Who Owns the Wrench?</h1>
+    <div class="meta"><span>Session length: 2.5 hours</span><span>Prep: 20 minutes</span><span>Contains all answers</span></div>
+  </div>
+
+  <nav class="toc" aria-label="Contents"><b>Contents</b><ol>
+    <li><a href="#goals">Learning goals</a></li><li><a href="#prep">Before class</a></li><li><a href="#plan">Run of show</a></li>
+    <li><a href="#deep">Deeper notes by topic</a></li><li><a href="#mistakes">Mistakes to expect</a></li><li><a href="#lab">Lab solutions</a></li>
+    <li><a href="#hw">Homework solution and grading</a></li><li><a href="#key">Quiz 2 answer key</a></li><li><a href="#extend">Extensions</a></li>
+  </ol></nav>
+
+  <h2 id="goals">Learning goals</h2>
+  <p>By the end of Session 2 a student can:</p>
+  <ol>
+    <li>Explain the stack and the heap, and draw what a <code>String</code> looks like in memory.</li>
+    <li>State the three ownership rules and say where any value is dropped.</li>
+    <li>Tell a move from a Copy, and choose deliberately when to <code>.clone()</code>.</li>
+    <li>Borrow with <code>&amp;</code> and <code>&amp;mut</code>, and apply "many readers or one writer".</li>
+    <li>Slice strings and arrays, and prefer <code>&amp;str</code> and <code>&amp;[T]</code> parameters.</li>
+    <li>Recognise E0382, E0499, E0502, E0594/E0596 and E0106 and fix each one.</li>
+  </ol>
+
+  <h2 id="prep">Before class</h2>
+  <ul>
+    <li>Grade Homework 1 and pick two contrasting <code>battery_bar</code> solutions to show (a loop and a <code>repeat</code> version are ideal).</li>
+    <li>Open <code>labs/lab2-fix-the-borrow-checker</code> and run <code>cargo build --bin puzzle1</code> once so students see the same first error you do.</li>
+    <li>Have a whiteboard ready for the stack and heap picture. You'll redraw it at least three times.</li>
+    <li>Keep the three ownership rules written up for the whole session.</li>
+  </ul>
+
+  <h2 id="plan">Run of show</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Time</th><th>Slides</th><th>Do</th></tr></thead>
+    <tbody>
+      <tr><td>0:00</td><td>1 to 2</td><td>Intro, Robbie's first rust, Homework 1 review (15 minutes).</td></tr>
+      <tr><td>0:15</td><td>3 to 4</td><td>Who cleans up memory; stack and heap. Draw the String picture.</td></tr>
+      <tr><td>0:30</td><td>5 to 9</td><td>The rules, drop, moves (run the failing example), moving into functions, Copy vs Clone.</td></tr>
+      <tr><td>0:55</td><td>10 to 13</td><td>Borrowing, <code>&amp;mut</code>, many readers or one writer, borrows ending at last use.</td></tr>
+      <tr><td>1:10</td><td></td><td>Break, 10 minutes.</td></tr>
+      <tr><td>1:20</td><td>14 to 18</td><td>Dangling references, slices, String vs &amp;str, lifetimes intro, error field guide.</td></tr>
+      <tr><td>1:40</td><td>19</td><td>Lab: Fix the Borrow Checker, 35 minutes. Leave slide 18 up on a second screen if you can.</td></tr>
+      <tr><td>2:15</td><td>20 to 21</td><td>Quiz 2 (15 minutes), homework kickoff, recap.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2 id="deep">Deeper notes by topic</h2>
+  <h3>Why moves exist</h3>
+  <p>If <code>let b = a;</code> copied only the stack record of a String, two records would point at one heap block and both would free it at the end of the scope. That double free is undefined behaviour in C. Rust's choice is to transfer responsibility: <code>a</code> becomes unusable, and only <code>b</code> frees. No runtime cost: a move is a 24-byte memcpy of the stack record, and the compiler may elide even that.</p>
+  <h3>Copy is a marker</h3>
+  <p><code>Copy</code> is a trait that says "duplicating my bytes is a valid copy". A type can only be Copy if all its parts are and it doesn't implement <code>Drop</code>. Students will meet <code>#[derive(Clone, Copy)]</code> on their own structs in Session 3; tease it now.</p>
+  <h3>Non-lexical lifetimes</h3>
+  <p>Since the 2018 edition, a borrow ends at its last use, not at the end of its block. This is why reordering fixes so many E0502s. When a student asks "but the variable is still in scope!", the answer is that scope and borrow duration are different things.</p>
+  <h3>Deref coercion</h3>
+  <p><code>&amp;String</code> becomes <code>&amp;str</code> automatically because <code>String</code> implements <code>Deref&lt;Target = str&gt;</code>. Same for <code>&amp;Vec&lt;T&gt;</code> to <code>&amp;[T]</code>. This is why clippy's <code>ptr_arg</code> lint tells you to take slices.</p>
+  <h3>Lifetimes, only as much as needed</h3>
+  <p>The elision rules: each input reference gets its own lifetime; if there's exactly one input lifetime, the output gets it; if there's <code>&amp;self</code>, the output gets self's. Only when those don't decide it must you write <code>'a</code>. Don't teach the rules today; just show <code>longer</code> and promise Session 4.</p>
+
+  <h2 id="mistakes">Mistakes to expect</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>What students do</th><th>What to say</th></tr></thead>
+    <tbody>
+      <tr><td>Add <code>.clone()</code> everywhere until it compiles</td><td>"It works, but who should own it?" The lab forbids clone to break the habit.</td></tr>
+      <tr><td>Write <code>fn f(s: String)</code> for read-only text</td><td>Take <code>&amp;str</code>; the function only looks.</td></tr>
+      <tr><td>Forget one of the three parts of a mutable borrow</td><td>Checklist: <code>let mut</code>, <code>&amp;mut</code> at the call, <code>&amp;mut</code> in the type.</td></tr>
+      <tr><td>Try to return <code>&amp;String</code> from a function that built it</td><td>Return the <code>String</code>; ownership moves out, nothing dangles.</td></tr>
+      <tr><td>Slice non-ASCII text by byte number and panic</td><td>Positions are bytes; use <code>.chars()</code> or stick to ASCII for now.</td></tr>
+      <tr><td>Think <code>*</code> is needed everywhere</td><td>Method calls auto-dereference (<code>r.len()</code>); <code>*</code> is for assigning or arithmetic.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2 id="lab">Lab solutions: Fix the Borrow Checker</h2>
+  <p>Each puzzle's starter fails with a different error. The solution files are in <code>teacher/s2/lab2-solutions</code>.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Puzzle</th><th>Error</th><th>Fix</th></tr></thead>
+    <tbody>
+      <tr><td>1 The Name Tag</td><td>E0382</td><td><code>let greeting = &amp;name;</code></td></tr>
+      <tr><td>2 The Shouting Function</td><td>E0382</td><td>Parameter <code>&amp;str</code>; call with <code>&amp;line</code></td></tr>
+      <tr><td>3 The Recharge Station</td><td>E0594</td><td><code>&amp;mut u32</code>, <code>let mut battery</code>, <code>&amp;mut battery</code></td></tr>
+      <tr><td>4 The Parts List</td><td>E0502</td><td>Print <code>first</code> before the <code>push</code></td></tr>
+      <tr><td>5 Two Wrenches, One Bolt</td><td>E0499</td><td>Use <code>mechanic_a</code> before creating <code>mechanic_b</code></td></tr>
+      <tr><td>6 The Dangling Antenna</td><td>E0106</td><td>Return <code>String</code>; just <code>format!(...)</code></td></tr>
+      <tr><td>7 The First Word</td><td>E0308</td><td>Take and return <code>&amp;str</code>, slice with <code>&amp;text[..i]</code></td></tr>
+    </tbody>
+  </table></div>
+  <details><summary>Puzzle 7 solution (the boss level)</summary>
+  <pre data-lang="rust" data-title="teacher/s2/lab2-solutions/puzzle7.rs">// Puzzle 7 solution: take &amp;str and return a slice of it. No new String is allocated.
+fn first_word(text: &amp;str) -&gt; &amp;str {
+    for (i, b) in text.bytes().enumerate() {
+        if b == b' ' {
+            return &amp;text[..i];
+        }
+    }
+    text
+}
+
+fn main() {
+    let owned = String::from("rotate left 90");
+    println!("{}", first_word(&amp;owned));
+    println!("{}", first_word("wave hello"));
+}</pre>
+  </details>
+
+  <h2 id="hw">Homework 2 solution and grading</h2>
+  <details><summary>Reference solution: src/lib.rs</summary>
+  <pre data-lang="rust" data-title="teacher/s2/hw2-solution-lib.rs">//! Homework 2: Log Scanner. Reference solution.
+
+/// Returns the first word of `text`: everything before the first space.
+pub fn first_word(text: &amp;str) -&gt; &amp;str {
+    for (i, b) in text.bytes().enumerate() {
+        if b == b' ' {
+            return &amp;text[..i];
+        }
+    }
+    text
+}
+
+/// Counts the lines in `log` whose level is `level`.
+pub fn count_level(log: &amp;str, level: &amp;str) -&gt; usize {
+    let tag = format!("[{level}]");
+    let mut count = 0;
+    for line in log.lines() {
+        if line.starts_with(&amp;tag) {
+            count += 1;
+        }
+    }
+    count
+}
+
+/// Returns the longest line in `log`; the first one wins a tie.
+pub fn longest_line(log: &amp;str) -&gt; &amp;str {
+    let mut best = "";
+    for line in log.lines() {
+        if line.len() &gt; best.len() {
+            best = line;
+        }
+    }
+    best
+}
+
+/// Replaces every occurrence of `secret` with the same number of stars.
+pub fn redact(line: &amp;str, secret: &amp;str) -&gt; String {
+    line.replace(secret, &amp;"*".repeat(secret.len()))
+}
+
+/// Uppercases `line` in place and adds `!`.
+pub fn shout(line: &amp;mut String) {
+    *line = line.to_uppercase();
+    line.push('!');
+}
+
+/// One-line report: line count, then each level's count.
+pub fn summary(log: &amp;str) -&gt; String {
+    format!(
+        "{} lines: {} ERROR, {} WARN, {} INFO",
+        log.lines().count(),
+        count_level(log, "ERROR"),
+        count_level(log, "WARN"),
+        count_level(log, "INFO")
+    )
+}</pre>
+  </details>
+  <p><b>Hidden tests the grader adds</b> (in <code>teacher/grading/hw2-hidden-tests.rs</code>): an empty log summarises as <code>"0 lines: 0 ERROR, 0 WARN, 0 INFO"</code>; <code>longest_line("")</code> is <code>""</code>; a tie returns the first line; a level named mid-line isn't counted; a secret that repeats is redacted every time and a missing one changes nothing; <code>first_word</code> of an empty string or one starting with a space is <code>""</code>; shouting an empty String gives <code>"!"</code>.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Check</th><th>Points</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Builds</td><td>2</td><td>All or nothing</td></tr>
+      <tr><td>Visible tests</td><td>3</td><td>Share of 8 passing</td></tr>
+      <tr><td>Hidden tests</td><td>3</td><td>Share of 7 passing</td></tr>
+      <tr><td>clippy clean</td><td>1</td><td>With <code>-D warnings</code></td></tr>
+      <tr><td>fmt clean</td><td>1</td><td><code>cargo fmt --check</code></td></tr>
+    </tbody>
+  </table></div>
+  <p>Common partial-credit cases: <code>count_level</code> using <code>contains</code> instead of <code>starts_with</code> (fails the mid-line test), <code>longest_line</code> using <code>&gt;=</code> (returns the last of a tie), and <code>shout</code> written as <code>line.to_uppercase();</code> without assigning back (does nothing, and clippy flags the unused result).</p>
+
+  <h2 id="key">Quiz 2 answer key</h2>
+  <div id="answerKey"></div>
+
+  <h2 id="extend">Extensions for fast students</h2>
+  <ul>
+    <li>Write <code>fn split_command(cmd: &amp;str) -&gt; (&amp;str, &amp;str)</code> that returns the verb and the rest, both as slices.</li>
+    <li>Make <code>first_word</code> work on non-ASCII text using <code>char_indices()</code>.</li>
+    <li>Rewrite <code>count_level</code> with <code>.lines().filter(...).count()</code>. (Preview of iterators in Session 4.)</li>
+    <li>Explain, in two sentences, why puzzle 4 would be a crash in C++ but is a compile error in Rust.</li>
+  </ul>
+
+  <h3>Beyond reading</h3>
+  <ul>
+    <li><a href="https://doc.rust-lang.org/book/ch04-00-understanding-ownership.html" target="_blank" rel="noopener">The Rust Programming Language, chapter 4: Understanding Ownership</a>.</li>
+    <li><a href="https://doc.rust-lang.org/error_codes/error-index.html" target="_blank" rel="noopener">The Rust error code index</a>, the same text as <code>rustc --explain</code>.</li>
+  </ul>
+
+  <footer class="site"><a href="../../docs/sessions/s2/index.html">Back to Session 2</a> · <a href="../../docs/sessions/s2/presentation.html">Open the slides</a></footer>
+</main>
+<script>
+window.ROBBIE_PAGE = {
+  greeting: "Teacher mode, Session 2. Today's the day the borrow checker earns its reputation. Be kind to it. Be kinder to your students.",
+  tips: ["Draw the String stack-and-heap picture early and point back at it every time a move confuses someone.", "When a student adds .clone() to make an error go away, ask who should own the value instead."],
+  eli5: ["The answer key below comes straight from the quiz file, so it can never disagree with the quiz."],
+  hype: ["If your students leave today able to say 'many readers or one writer', you won."]
+};
+</script>
+<script src="../../docs/assets/js/course.js"></script>
+<script src="../../docs/sessions/s2/quiz-data.js"></script>
+<script>
+(function () {
+  const Q = window.QUIZ, el = document.getElementById("answerKey"), esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  el.innerHTML = '<div class="tablewrap"><table><thead><tr><th>#</th><th>Question</th><th>Answer</th><th>Why</th></tr></thead><tbody>' +
+    Q.questions.map((q, i) => `<tr><td>${i + 1}</td><td>${q.prompt}${q.code ? `<br><code>${esc(q.code).replace(/\n/g, "<br>")}</code>` : ""}</td><td><b>${q.type === "mc" ? esc(q.options[q.answer]) : esc(q.answers[0])}</b></td><td>${q.why}</td></tr>`).join("") +
+    "</tbody></table></div>";
+})();
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="../../docs/assets/js/site.js"></script>
+<script src="../../docs/assets/js/robbie.js"></script>
+<script type="module" src="../../docs/assets/js/robbie3d.js"></script>
+</body>
+</html>

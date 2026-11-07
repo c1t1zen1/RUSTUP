@@ -1,0 +1,689 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Building Blocks Handbook</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=IBM+Plex+Sans:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../assets/css/site.css">
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/" } }</script>
+</head>
+<body data-base="../.." data-page="s3-handbook" data-rust="2">
+<header class="topbar" data-crumbs='[{"t": "Course map", "href": "../../index.html"}, {"t": "Session 3", "href": "index.html"}, {"t": "Student Handbook"}]'></header>
+
+<main class="read">
+  <div class="doc-head">
+    <p class="eyebrow">Student Handbook · Session 3</p>
+    <h1>Building Blocks</h1>
+    <div class="meta"><span>Reading time: 35 minutes</span><span>Robbie: 32% rust, streaky</span></div>
+  </div>
+
+  <div class="callout robbie"><img src="../../assets/img/robbie-face.jpg" alt=""><div><span class="tag">Robbie says</span>
+    <p>It rained again. I'm a third rust now, and the streaks run down from every seam. Today you get the tools to describe exactly that: a <code>struct</code> for me, an <code>enum</code> for what I can do, and a <code>Result</code> for when I refuse to do it. Run every example. Break them on purpose. The compiler's error messages today are some of its best.</p>
+  </div></div>
+
+  <nav class="toc" aria-label="Contents"><b>Contents</b><ol>
+    <li><a href="#structs">Structs</a></li><li><a href="#impl">Methods with impl</a></li><li><a href="#enums">Enums</a></li>
+    <li><a href="#match">match and patterns</a></li><li><a href="#iflet">if let, let else, while let</a></li><li><a href="#option">Option</a></li>
+    <li><a href="#result">Result and your own errors</a></li><li><a href="#question">The ? operator</a></li><li><a href="#modules">Modules and privacy</a></li>
+    <li><a href="#errors">Error field guide</a></li><li><a href="#cheat">Cheat sheet</a></li><li><a href="#practice">Practice questions</a></li>
+    <li><a href="#hw">Homework 3</a></li><li><a href="#checkpoint">Checkpoint 1</a></li>
+  </ol></nav>
+
+  <h2 id="structs">1. Structs</h2>
+  <p>A <b>struct</b> bundles related values under one name, and gives each value a name of its own. You define the shape once, then build as many as you like.</p>
+  <pre data-run>struct Robot {
+    name: String,
+    battery: u8,
+    x: i32,
+    y: i32,
+}
+
+fn main() {
+    // a tuple works, but which number is which?
+    let mystery = (87, 3, -2);
+    println!("{mystery:?}");
+
+    // a struct says it out loud
+    let robbie = Robot {
+        name: String::from("Robbie"),
+        battery: 87,
+        x: 3,
+        y: -2,
+    };
+    println!(
+        "{} is at ({}, {}) with {}% battery",
+        robbie.name, robbie.x, robbie.y, robbie.battery
+    );
+}</pre>
+  <p>Fields are read with a dot: <code>robbie.battery</code>. To change a field, the whole binding has to be <code>mut</code>. There's no way to make one field mutable and another not; Rust controls that with privacy instead, which you'll see in section 9.</p>
+  <pre data-run>#[derive(Debug)]
+struct Robot {
+    name: String,
+    battery: u8,
+}
+
+fn main() {
+    let mut robbie = Robot {
+        name: String::from("Robbie"),
+        battery: 40,
+    };
+    robbie.battery += 25; // the whole struct is mut, so every field is
+    println!("{robbie:?}");
+    println!("{robbie:#?}"); // pretty, one field per line
+    println!("{} is at {}%", robbie.name, robbie.battery);
+}</pre>
+  <p><code>#[derive(Debug)]</code> asks the compiler to write the code that prints your struct with <code>{:?}</code>, or <code>{:#?}</code> for one field per line. You'll put <code>derive</code> on nearly every type you write.</p>
+  <h3>Three shortcuts</h3>
+  <pre data-run>#[derive(Debug, Clone)]
+struct Part {
+    name: String,
+    rust: u8,
+    shiny: bool,
+}
+
+#[derive(Debug)]
+struct Meters(f64); // a tuple struct: a named wrapper
+
+fn make_part(name: String, rust: u8) -&gt; Part {
+    Part {
+        name,
+        rust,
+        shiny: rust == 0,
+    } // field init shorthand
+}
+
+fn main() {
+    let elbow = make_part(String::from("elbow"), 40);
+    let knee = Part {
+        name: String::from("knee"),
+        ..elbow.clone()
+    }; // copy the rest
+    let reach = Meters(1.2);
+    println!("{elbow:?}");
+    println!(
+        "{} has {}% rust, shiny: {}",
+        knee.name, knee.rust, knee.shiny
+    );
+    println!("reach {} m", reach.0);
+}</pre>
+  <ul>
+    <li><b>Field init shorthand.</b> If a variable has the same name as the field, write it once: <code>Part { name, rust, .. }</code>.</li>
+    <li><b>Struct update syntax.</b> <code>..other</code> copies every field you didn't list. It <i>moves</i> any non-Copy fields out of <code>other</code>, which is why the example clones.</li>
+    <li><b>Tuple structs.</b> <code>struct Meters(f64);</code> wraps a number so it can't be confused with seconds or kilograms. Read the inside with <code>.0</code>.</li>
+  </ul>
+
+  <h2 id="impl">2. Methods with impl</h2>
+  <p>An <code>impl</code> block attaches functions to a type. The first parameter decides what the method may do with the value, using exactly the ownership rules from Session 2.</p>
+  <pre data-run>struct Robot {
+    name: String,
+    battery: u8,
+}
+
+impl Robot {
+    // an associated function: no self, called as Robot::new
+    fn new(name: &amp;str) -&gt; Robot {
+        Robot {
+            name: name.to_string(),
+            battery: 100,
+        }
+    }
+
+    // &amp;self: look but don't touch
+    fn is_tired(&amp;self) -&gt; bool {
+        self.battery &lt; 20
+    }
+
+    // &amp;mut self: allowed to change fields
+    fn work(&amp;mut self, hours: u8) {
+        self.battery = self.battery.saturating_sub(hours * 15);
+    }
+}
+
+fn main() {
+    let mut r = Robot::new("Robbie");
+    r.work(6);
+    println!("{} tired? {} ({}%)", r.name, r.is_tired(), r.battery);
+}</pre>
+  <div class="tablewrap"><table>
+    <thead><tr><th>First parameter</th><th>Meaning</th><th>Called as</th></tr></thead>
+    <tbody>
+      <tr><td><code>&amp;self</code></td><td>Borrow to read</td><td><code>r.is_tired()</code></td></tr>
+      <tr><td><code>&amp;mut self</code></td><td>Borrow to change</td><td><code>r.work(6)</code>, needs <code>let mut r</code></td></tr>
+      <tr><td><code>self</code></td><td>Take ownership: the value is used up</td><td><code>r.into_scrap()</code></td></tr>
+      <tr><td>none</td><td>Associated function, no value needed</td><td><code>Robot::new("Robbie")</code></td></tr>
+    </tbody>
+  </table></div>
+  <div class="callout mnemonic"><span class="tag">Remember this</span><p><b><code>&amp;self</code> looks, <code>&amp;mut self</code> touches, <code>self</code> takes.</b> No self at all? Call it on the type with <code>::</code>.</p></div>
+
+  <h2 id="enums">3. Enums</h2>
+  <p>An <b>enum</b> is a type with a fixed list of possible values, called variants. A <code>Direction</code> can only ever be one of four things, so typos and impossible values simply can't exist.</p>
+  <pre data-run>#[derive(Debug, Clone, Copy, PartialEq)]
+enum Direction {
+    North,
+    East,
+    South,
+    West,
+}
+
+fn opposite(d: Direction) -&gt; Direction {
+    match d {
+        Direction::North =&gt; Direction::South,
+        Direction::East =&gt; Direction::West,
+        Direction::South =&gt; Direction::North,
+        Direction::West =&gt; Direction::East,
+    }
+}
+
+fn main() {
+    let facing = Direction::East;
+    println!("{facing:?} turns around to {:?}", opposite(facing));
+}</pre>
+  <p>Rust's enums go further than most languages': each variant can carry its own data, of its own shape.</p>
+  <pre data-run>#[derive(Debug)]
+enum Command {
+    Forward(u32),          // one number
+    Turn { degrees: i32 }, // a named field
+    Say(String),           // owns some text
+    Charge,                // no data at all
+}
+
+fn describe(cmd: &amp;Command) -&gt; String {
+    match cmd {
+        Command::Forward(n) =&gt; format!("roll {n} squares"),
+        Command::Turn { degrees } =&gt; format!("turn {degrees} degrees"),
+        Command::Say(text) =&gt; format!("say '{text}'"),
+        Command::Charge =&gt; String::from("plug in"),
+    }
+}
+
+fn main() {
+    let plan = [
+        Command::Say(String::from("hi")),
+        Command::Forward(3),
+        Command::Turn { degrees: -90 },
+        Command::Charge,
+    ];
+    for cmd in &amp;plan {
+        println!("{}", describe(cmd));
+    }
+}</pre>
+  <p>One type, <code>Command</code>, now describes every instruction Robbie understands, and the data each one needs. In other languages you'd reach for a class hierarchy, or a dictionary with a "type" key and a prayer. This is the pattern both the lab and the homework are built on.</p>
+  <div class="callout mnemonic"><span class="tag">Remember this</span><p><b>A struct is a form: it has all of these boxes. An enum is a multiple choice question: it's exactly one of these answers.</b> Structs are AND, enums are OR.</p></div>
+
+  <h2 id="match">4. match and patterns</h2>
+  <p><code>match</code> compares a value against patterns, top to bottom, and runs the first arm that fits. It must be <b>exhaustive</b>: every possible value has to land somewhere. This example fails on purpose:</p>
+  <p class="muted">Fails on purpose (E0004). Press Run and read the error.</p>
+  <pre data-run>enum Light {
+    Green,
+    Amber,
+    Red,
+}
+
+fn action(light: Light) -&gt; &amp;'static str {
+    match light {
+        Light::Green =&gt; "go",
+        Light::Red =&gt; "stop",
+        // forgot Amber!
+    }
+}
+
+fn main() {
+    println!("{}", action(Light::Amber));
+}</pre>
+  <p>That's error E0004, and it's a gift. If you add a variant to an enum next month, the compiler will point at every <code>match</code> that needs updating.</p>
+  <pre data-run>fn mood(battery: u8) -&gt; &amp;'static str {
+    match battery {
+        0 =&gt; "asleep",
+        1..=19 =&gt; "grumpy",
+        20..=79 =&gt; "fine",
+        80..=99 =&gt; "chipper",
+        100 =&gt; "UNSTOPPABLE",
+        _ =&gt; "impossible", // u8 goes up to 255, so we still need a catch-all
+    }
+}
+
+fn weather(rain_mm: u32, windy: bool) -&gt; &amp;'static str {
+    match (rain_mm, windy) {
+        (0, false) =&gt; "lovely",
+        (0, true) =&gt; "breezy",
+        (r, _) if r &gt; 20 =&gt; "stay inside, Robbie",
+        _ =&gt; "drizzly",
+    }
+}
+
+fn main() {
+    for b in [0, 12, 55, 90, 100] {
+        println!("{b}% -&gt; {}", mood(b));
+    }
+    println!("{}", weather(35, false));
+}</pre>
+  <ul>
+    <li><code>1..=19</code> matches a range, inclusive at both ends.</li>
+    <li><code>a | b</code> matches either pattern.</li>
+    <li><code>_</code> matches anything and ignores it. A plain name like <code>r</code> matches anything and keeps it.</li>
+    <li><code>if</code> after a pattern is a <b>guard</b>: the arm only matches when the condition is true too.</li>
+  </ul>
+  <div class="callout gotcha"><span class="tag">Gotcha</span><p><code>match</code> is an expression, so every arm has to produce the same type. If one arm gives a <code>&amp;str</code> and another a <code>String</code>, that's E0308.</p></div>
+
+  <h2 id="iflet">5. if let, let else, while let</h2>
+  <p>When you only care about one pattern, a full <code>match</code> is noisy. Three shorter forms:</p>
+  <pre data-run>fn main() {
+    let spare_part: Option&lt;&amp;str&gt; = Some("left knee");
+
+    // if let: only care about one pattern
+    if let Some(part) = spare_part {
+        println!("Fitting the {part}");
+    }
+
+    // let else: get the value or leave early
+    let Some(part) = spare_part else {
+        println!("No spare. Robbie limps on.");
+        return;
+    };
+    println!("Still holding the {part}");
+}</pre>
+  <pre data-run>fn main() {
+    let mut to_do = vec!["oil knees", "dry antenna", "polish chest"];
+    while let Some(job) = to_do.pop() {
+        println!("doing: {job}");
+    }
+}</pre>
+  <ul>
+    <li><b><code>if let</code></b> runs a block if the pattern matches.</li>
+    <li><b><code>let ... else</code></b> unpacks the value or leaves: the <code>else</code> block must <code>return</code>, <code>break</code>, <code>continue</code> or panic.</li>
+    <li><b><code>while let</code></b> keeps looping as long as the pattern matches. Popping a stack until it's empty is the classic use.</li>
+  </ul>
+
+  <h2 id="option">6. Option</h2>
+  <p>Rust has no null. A value that might be missing has the type <code>Option&lt;T&gt;</code>, which is just a standard enum: <code>Some(T)</code> or <code>None</code>. Because it's a different type from <code>T</code>, you can't use it by accident.</p>
+  <pre data-run>fn find_part(name: &amp;str) -&gt; Option&lt;u32&gt; {
+    match name {
+        "elbow" =&gt; Some(12),
+        "knee" =&gt; Some(7),
+        _ =&gt; None, // no null: just an honest "nothing"
+    }
+}
+
+fn main() {
+    for name in ["elbow", "antenna"] {
+        match find_part(name) {
+            Some(shelf) =&gt; println!("{name} is on shelf {shelf}"),
+            None =&gt; println!("no {name} in stock"),
+        }
+    }
+}</pre>
+  <p class="muted">Fails on purpose (E0308). Press Run and read the error.</p>
+  <pre data-run>fn find_part(name: &amp;str) -&gt; Option&lt;u32&gt; {
+    if name == "elbow" { Some(12) } else { None }
+}
+
+fn main() {
+    let shelf: u32 = find_part("elbow"); // an Option&lt;u32&gt; is not a u32
+    println!("{shelf}");
+}</pre>
+  <p>Ways to open the box:</p>
+  <pre data-run>fn find_part(name: &amp;str) -&gt; Option&lt;u32&gt; {
+    if name == "elbow" { Some(12) } else { None }
+}
+
+fn main() {
+    let found = find_part("elbow");
+    let missing = find_part("antenna");
+
+    println!("{}", found.unwrap_or(0)); // 12
+    println!("{}", missing.unwrap_or(0)); // 0
+    println!("{:?}", found.map(|s| s * 10)); // Some(120)
+    println!("{}", missing.is_none()); // true
+
+    let shelf = found.expect("the elbow should always be in stock");
+    println!("shelf {shelf}");
+}</pre>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Method</th><th>What it does</th></tr></thead>
+    <tbody>
+      <tr><td><code>unwrap_or(d)</code></td><td>The value, or <code>d</code> if None</td></tr>
+      <tr><td><code>map(|v| ...)</code></td><td>Change the value inside, if there is one</td></tr>
+      <tr><td><code>is_some()</code> / <code>is_none()</code></td><td>Just ask</td></tr>
+      <tr><td><code>ok_or(err)</code></td><td>Turn it into a <code>Result</code>, with <code>err</code> for None</td></tr>
+      <tr><td><code>expect("why")</code> / <code>unwrap()</code></td><td>The value, or <b>panic</b></td></tr>
+    </tbody>
+  </table></div>
+  <div class="callout mnemonic"><span class="tag">Remember this</span><p><b>Option is a gift box.</b> Some has a present inside, None is empty. You have to open it before you can play.</p></div>
+
+  <h2 id="result">7. Result and your own errors</h2>
+  <p><code>Result&lt;T, E&gt;</code> is <code>Ok(T)</code> or <code>Err(E)</code>. Use it whenever something can fail and the caller deserves to know why. Parsing is the everyday example:</p>
+  <pre data-run>fn main() {
+    for text in ["42", "forty-two", "-3"] {
+        match text.parse::&lt;u32&gt;() {
+            Ok(n) =&gt; println!("{text:&gt;10} -&gt; {n}"),
+            Err(e) =&gt; println!("{text:&gt;10} -&gt; error: {e}"),
+        }
+    }
+}</pre>
+  <p>For your own code, make the error an enum with one variant per thing that can go wrong, and implement <code>Display</code> so it prints a readable sentence:</p>
+  <pre data-run>use std::fmt;
+
+#[derive(Debug)]
+enum ChargeError {
+    NoOutlet,
+    Overheated { temp: u32 },
+}
+
+impl fmt::Display for ChargeError {
+    fn fmt(&amp;self, f: &amp;mut fmt::Formatter) -&gt; fmt::Result {
+        match self {
+            ChargeError::NoOutlet =&gt; write!(f, "no outlet in reach"),
+            ChargeError::Overheated { temp } =&gt; write!(f, "too hot to charge ({temp} C)"),
+        }
+    }
+}
+
+fn charge(temp: u32, outlet: bool) -&gt; Result&lt;u8, ChargeError&gt; {
+    if !outlet {
+        return Err(ChargeError::NoOutlet);
+    }
+    if temp &gt; 60 {
+        return Err(ChargeError::Overheated { temp });
+    }
+    Ok(100)
+}
+
+fn main() {
+    println!("{:?}", charge(30, true));
+    match charge(75, true) {
+        Ok(level) =&gt; println!("charged to {level}"),
+        Err(e) =&gt; println!("can't: {e}"),
+    }
+}</pre>
+  <div class="callout mnemonic"><span class="tag">Remember this</span><p><b>Option is a shrug. Result is a shrug with an explanation.</b> If the caller would ask "why not?", use Result.</p></div>
+
+  <h2 id="question">8. The ? operator</h2>
+  <p>Handling every <code>Result</code> with <code>match</code> gets long fast:</p>
+  <pre data-run>fn total_load(a: &amp;str, b: &amp;str) -&gt; Result&lt;u32, std::num::ParseIntError&gt; {
+    let x = match a.parse::&lt;u32&gt;() {
+        Ok(n) =&gt; n,
+        Err(e) =&gt; return Err(e),
+    };
+    let y = match b.parse::&lt;u32&gt;() {
+        Ok(n) =&gt; n,
+        Err(e) =&gt; return Err(e),
+    };
+    Ok(x + y)
+}
+
+fn main() {
+    println!("{:?}", total_load("12", "30"));
+    println!("{:?}", total_load("12", "lots"));
+}</pre>
+  <p>The <code>?</code> operator does exactly the same thing in one character. On <code>Ok(v)</code> it gives you <code>v</code>; on <code>Err(e)</code> it returns <code>Err(e)</code> from the whole function, immediately.</p>
+  <pre data-run>use std::num::ParseIntError;
+
+fn total_load(a: &amp;str, b: &amp;str) -&gt; Result&lt;u32, ParseIntError&gt; {
+    let x: u32 = a.parse()?; // bad news? return it now. good news? unwrap and carry on
+    let y: u32 = b.parse()?;
+    Ok(x + y)
+}
+
+fn main() {
+    println!("{:?}", total_load("12", "30"));
+    println!("{:?}", total_load("12", "lots"));
+}</pre>
+  <p>It works on <code>Option</code> too, returning <code>None</code> early:</p>
+  <pre data-run>fn first_digit(text: &amp;str) -&gt; Option&lt;u32&gt; {
+    let c = text.chars().next()?; // empty text: return None right here
+    c.to_digit(10)
+}
+
+fn main() {
+    println!(
+        "{:?} {:?} {:?}",
+        first_digit("7 bolts"),
+        first_digit("bolts"),
+        first_digit("")
+    );
+}</pre>
+  <p>Two tools make <code>?</code> fit any situation. <code>map_err</code> turns one error type into yours, and <code>ok_or</code> turns an <code>Option</code> into a <code>Result</code>:</p>
+  <pre data-run>#[derive(Debug)]
+enum CmdError {
+    BadNumber(String),
+}
+
+fn steps(text: &amp;str) -&gt; Result&lt;u32, CmdError&gt; {
+    let n = text
+        .parse::&lt;u32&gt;()
+        .map_err(|_| CmdError::BadNumber(text.to_string()))?;
+    Ok(n)
+}
+
+fn main() {
+    for text in ["4", "four"] {
+        match steps(text) {
+            Ok(n) =&gt; println!("{n} steps"),
+            Err(CmdError::BadNumber(bad)) =&gt; println!("'{bad}' is not a number"),
+        }
+    }
+}</pre>
+  <pre data-run>#[derive(Debug)]
+enum FixError {
+    NoPart(String),
+}
+
+fn find_part(name: &amp;str) -&gt; Option&lt;u32&gt; {
+    if name == "knee" { Some(7) } else { None }
+}
+
+fn fit(name: &amp;str) -&gt; Result&lt;u32, FixError&gt; {
+    let shelf = find_part(name).ok_or(FixError::NoPart(name.to_string()))?;
+    Ok(shelf)
+}
+
+fn main() {
+    for name in ["knee", "visor"] {
+        match fit(name) {
+            Ok(shelf) =&gt; println!("{name}: shelf {shelf}"),
+            Err(FixError::NoPart(part)) =&gt; println!("{name}: no {part} in stock"),
+        }
+    }
+}</pre>
+  <p><code>?</code> can only be used inside a function that itself returns <code>Result</code> or <code>Option</code>, otherwise there's nowhere to send the error. This fails on purpose:</p>
+  <p class="muted">Fails on purpose (E0277). Press Run and read the error.</p>
+  <pre data-run>fn main() {
+    let n: u32 = "12".parse()?; // main returns (), so where would the error go?
+    println!("{n}");
+}</pre>
+  <p>The fix for <code>main</code> is <code>fn main() -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt;</code> with <code>Ok(())</code> at the end.</p>
+  <div class="callout mnemonic"><span class="tag">Remember this</span><p><b><code>?</code> is a hot potato.</b> Good news, you keep it. Bad news, you toss it straight back to whoever called you.</p></div>
+
+  <h2 id="modules">9. Modules and privacy</h2>
+  <p>A <b>module</b> groups code and draws a privacy line around it. Everything is private by default; <code>pub</code> opens it up. <code>use</code> brings a path into scope so you can write the short name.</p>
+  <pre data-run>mod robot {
+    pub struct Robot {
+        pub name: String,
+        battery: u8, // private: only code inside mod robot can touch it
+    }
+
+    impl Robot {
+        pub fn new(name: &amp;str) -&gt; Robot {
+            Robot {
+                name: name.to_string(),
+                battery: 100,
+            }
+        }
+
+        pub fn battery(&amp;self) -&gt; u8 {
+            self.battery
+        }
+    }
+
+    pub mod sensors {
+        pub fn rain_detected() -&gt; bool {
+            true // it's always raining on Robbie
+        }
+    }
+}
+
+use robot::Robot;
+
+fn main() {
+    let r = Robot::new("Robbie");
+    println!(
+        "{} {}% rain={}",
+        r.name,
+        r.battery(),
+        robot::sensors::rain_detected()
+    );
+}</pre>
+  <p>In a project, <code>mod robot;</code> in <code>src/lib.rs</code> tells Rust to load <code>src/robot.rs</code>. Inside it, <code>use crate::parse::Command;</code> reaches another module from the crate's root. That's exactly how Homework 3 is laid out:</p>
+  <pre data-lang="text" data-title="homework/hw3-command-language">src/
+├── main.rs    the program: runs a script and prints what happened
+├── lib.rs     pub mod parse; pub mod robot; and run_script
+├── parse.rs   Command, ParseError, parse_line
+└── robot.rs   Direction, Robot, RobotError</pre>
+  <p>A <code>pub struct</code> doesn't make its fields public. Each field needs its own <code>pub</code>:</p>
+  <p class="muted">Fails on purpose (E0616). Press Run and read the error.</p>
+  <pre data-run>mod robot {
+    pub struct Robot {
+        pub name: String,
+        battery: u8,
+    }
+
+    impl Robot {
+        pub fn new(name: &amp;str) -&gt; Robot {
+            Robot {
+                name: name.to_string(),
+                battery: 100,
+            }
+        }
+    }
+}
+
+fn main() {
+    let mut r = robot::Robot::new("Robbie");
+    r.battery = 255; // nice try
+    println!("{}", r.name);
+}</pre>
+  <p>That's what lets a module keep promises, like "the battery never goes over 100". Outside code can only change it through methods the module chooses to offer.</p>
+
+  <h2 id="errors">10. Error field guide</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Code</th><th>What it means</th><th>Usual fix</th></tr></thead>
+    <tbody>
+      <tr><td><code>E0004</code></td><td>A <code>match</code> misses some cases</td><td>Add the arms the error lists, or a <code>_</code> arm</td></tr>
+      <tr><td><code>E0308</code></td><td>Mismatched types, often <code>Option&lt;T&gt;</code> where <code>T</code> was expected, or arms of different types</td><td>Unpack the Option; make every arm return the same type</td></tr>
+      <tr><td><code>E0277</code></td><td><code>?</code> in a function returning <code>()</code></td><td>Return <code>Result</code> or <code>Option</code>, or use <code>match</code></td></tr>
+      <tr><td><code>E0063</code></td><td>A struct literal is missing a field</td><td>List them all, or use <code>..other</code></td></tr>
+      <tr><td><code>E0616</code> / <code>E0603</code></td><td>Using a private field or item from outside its module</td><td><code>pub</code>, or a public method</td></tr>
+      <tr><td><code>E0423</code></td><td>Calling <code>Robot.new()</code> with a dot</td><td>Associated functions use <code>::</code>: <code>Robot::new()</code></td></tr>
+    </tbody>
+  </table></div>
+
+  <h2 id="cheat">Cheat sheet</h2>
+  <pre data-lang="rust" data-title="Session 3 on one screen">struct Robot { name: String, battery: u8 }          // AND: all of these
+enum Command { Forward(u32), Say(String), Charge }    // OR: exactly one of these
+
+impl Robot {
+    fn new(name: &amp;str) -&gt; Robot { .. }   // Robot::new("x")
+    fn look(&amp;self) { .. }                // read
+    fn change(&amp;mut self) { .. }          // write
+}
+
+match cmd {                              // must cover every case
+    Command::Forward(n) if n &gt; 10 =&gt; ..,
+    Command::Forward(n) =&gt; ..,
+    Command::Say(text) =&gt; ..,
+    _ =&gt; ..,                             // everything else
+}
+
+if let Some(x) = maybe { .. }            // one pattern
+let Some(x) = maybe else { return };     // unpack or leave
+
+Option&lt;T&gt;:  Some(v) | None               // maybe nothing
+Result&lt;T, E&gt;: Ok(v) | Err(e)             // maybe failed, and why
+
+let n: u32 = text.parse()?;              // Err? return it. Ok? unwrap it.
+let n = text.parse::&lt;u32&gt;().map_err(|_| MyError::BadNumber)?;
+let shelf = find(name).ok_or(MyError::NotFound)?;
+
+mod robot;            // loads src/robot.rs
+pub fn / pub field    // visible outside the module
+use crate::robot::Robot;</pre>
+
+  <h2 id="practice">Practice questions</h2>
+  <details><summary>1. What's the difference between a struct and an enum?</summary><p>A struct holds all of its fields at once (AND). An enum value is exactly one of its variants (OR).</p></details>
+  <details><summary>2. Why does <code>fn charge(&amp;self) { self.battery = 100; }</code> fail?</summary><p><code>&amp;self</code> is a shared borrow, which can't change anything. It needs <code>&amp;mut self</code>.</p></details>
+  <details><summary>3. How do you call <code>fn new(name: &amp;str) -&gt; Robot</code> defined in <code>impl Robot</code>?</summary><p><code>Robot::new("Robbie")</code>. No <code>self</code> means it's called on the type with <code>::</code>.</p></details>
+  <details><summary>4. A <code>match</code> on a <code>u8</code> covers <code>0..=100</code>. Why won't it compile?</summary><p>A <code>u8</code> goes up to 255. Add a <code>_</code> arm for 101 to 255.</p></details>
+  <details><summary>5. What does <code>Some(4).map(|n| n * 2)</code> give? And <code>None.map(...)</code>?</summary><p><code>Some(8)</code>, and <code>None</code>. <code>map</code> only touches a value that's there.</p></details>
+  <details><summary>6. When would you return <code>Option</code> rather than <code>Result</code>?</summary><p>When "nothing there" is a normal answer that needs no explanation, like looking something up. Use <code>Result</code> when the caller needs to know what went wrong.</p></details>
+  <details><summary>7. What does <code>?</code> do with <code>Err(e)</code>?</summary><p>Returns <code>Err(e)</code> from the current function immediately.</p></details>
+  <details><summary>8. Your function returns <code>Result&lt;u32, MyError&gt;</code> and <code>text.parse::&lt;u32&gt;()?</code> won't compile. Why, and what's the fix?</summary><p>The parse error is a <code>ParseIntError</code>, not a <code>MyError</code>. Convert it first: <code>.map_err(|_| MyError::BadNumber)?</code>.</p></details>
+  <details><summary>9. What's the difference between <code>unwrap()</code> and <code>expect("...")</code>?</summary><p>Both panic on <code>None</code> or <code>Err</code>. <code>expect</code> lets you say why it should never happen, which makes the panic message useful.</p></details>
+  <details><summary>10. <code>pub struct Robot { battery: u8 }</code> is in <code>mod robot</code>. Can <code>main</code> read <code>r.battery</code>?</summary><p>No. The struct is public but the field isn't (E0616). Make the field <code>pub</code> or add a <code>pub fn battery(&amp;self)</code> method.</p></details>
+
+  <h2 id="hw">Homework 3: Command Language</h2>
+  <p><b>Due:</b> before Session 4. <b>Time:</b> 3 hours. <b>Folder:</b> <code>homework/hw3-command-language</code> in the course repo.</p>
+  <p>In the lab, Robbie shrugged (<code>None</code>) at anything he didn't understand. Now he runs whole scripts, and when something goes wrong he says exactly what, and on which line.</p>
+  <pre data-lang="text" data-title="a Robbie script"># Robbie's studio tour
+say Welcome to the studio!
+forward 4
+right
+forward 3
+report</pre>
+  <ol>
+    <li><code>parse_line(line) -&gt; Result&lt;Command, ParseError&gt;</code> in <code>parse.rs</code>, with errors for an empty line, an unknown command, a missing argument and a bad number.</li>
+    <li><code>Robot::apply(&amp;mut self, cmd) -&gt; Result&lt;Option&lt;String&gt;, RobotError&gt;</code> in <code>robot.rs</code>: refuse a move for low battery or leaving the 21 by 21 grid, and change nothing when refusing.</li>
+    <li><code>run_script(script) -&gt; Result&lt;(Robot, Vec&lt;String&gt;), ScriptError&gt;</code> in <code>lib.rs</code>: skip blanks and <code>#</code> comments, stop at the first error and name its line.</li>
+    <li>A <code>Display</code> message for each of the three error types.</li>
+  </ol>
+  <p>Every rule is in the doc comment above the function. The hidden tests check exactly those rules, so read them closely.</p>
+  <pre data-lang="sh" data-title="terminal">cargo test                      # 8 visible tests
+cargo clippy -- -D warnings     # no warnings allowed
+cargo fmt --check               # formatted the standard way
+cargo run                       # the tour, then a script that fails on line 2</pre>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Graded on</th><th>Points</th></tr></thead>
+    <tbody>
+      <tr><td>Builds</td><td>2</td></tr><tr><td>Visible tests pass</td><td>3</td></tr><tr><td>Hidden tests pass (case and spaces, zero and negative distances, the grid edge, battery before bounds, comments and line numbers)</td><td>3</td></tr>
+      <tr><td>clippy clean</td><td>1</td></tr><tr><td>fmt clean</td><td>1</td></tr>
+    </tbody>
+  </table></div>
+  <div class="callout robbie"><img src="../../assets/img/robbie-face.jpg" alt=""><div><span class="tag">Robbie says</span>
+    <p>Hints: <code>split_once(char::is_whitespace)</code> splits off the first word, <code>.parse::&lt;u32&gt;()</code> gives a Result, <code>.map_err(...)</code> changes its error, and <code>?</code> sends it back up. For line numbers, <code>.lines().enumerate()</code> counts from 0, so add 1. And please test the grid edge. Last time I went off the edge it was into a puddle.</p>
+  </div></div>
+
+  <h2 id="checkpoint">Checkpoint 1</h2>
+  <p>Checkpoint 1 is a 15-question review of Sessions 1 to 3: cargo and types, ownership and borrowing, and today's structs, enums and errors. Take it before Session 4. It isn't graded, but your teacher sees how the room did, and Session 4 builds on all of it.</p>
+  <div class="cta-row"><a class="btn primary" href="checkpoint.html">Take Checkpoint 1</a><a class="btn" href="quiz.html">Take Quiz 3</a></div>
+
+  <footer class="site"><a href="index.html">Back to Session 3</a> · <a href="quiz.html">Take Quiz 3</a></footer>
+</main>
+
+<script>
+window.ROBBIE_PAGE = {
+  "greeting": "Session 3 handbook. Structs, enums and errors today. Tap me if a match won't compile.",
+  "tips": [
+    "Stuck on E0004? The error message lists the exact patterns you're missing.",
+    "If you write .unwrap() in lib.rs, ask yourself: could the caller handle this better? Then use ?.",
+    "In the homework, change nothing when a move is refused. Check first, then move."
+  ],
+  "eli5": [
+    "A struct is a lunchbox with a spot for each thing. An enum is a menu: you pick exactly one.",
+    "Option is a box that might be empty. You have to peek before you grab.",
+    "? is like passing a note back up the line: 'something went wrong, your turn'."
+  ],
+  "hype": [
+    "After today you can describe nearly any program's data in Rust. Seriously.",
+    "Error handling is where Rust quietly beats most languages. You're learning the good stuff."
+  ]
+};
+</script>
+<script src="../../assets/js/course.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="../../assets/js/site.js"></script>
+<script src="../../assets/js/robbie.js"></script>
+<script type="module" src="../../assets/js/robbie3d.js"></script>
+</body>
+</html>

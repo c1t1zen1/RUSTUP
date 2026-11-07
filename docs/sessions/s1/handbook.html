@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Boot Sequence Handbook</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=IBM+Plex+Sans:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../assets/css/site.css">
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/" } }</script>
+</head>
+<body data-base="../.." data-page="s1-handbook" data-rust="0">
+<header class="topbar" data-crumbs='[{"t":"Course map","href":"../../index.html"},{"t":"Session 1","href":"index.html"},{"t":"Student Handbook"}]'></header>
+
+<main class="read">
+  <div class="doc-head">
+    <p class="eyebrow">Student Handbook · Session 1</p>
+    <h1>Boot Sequence</h1>
+    <div class="meta"><span>Reading time: 25 minutes</span><span>Robbie rust level: 0 (shiny)</span></div>
+  </div>
+
+  <div class="callout robbie"><img src="../../assets/img/robbie-face.jpg" alt=""><div><span class="tag">Robbie says</span>
+    <p>Hi! This handbook is everything from today's session, written down so you can reread it at 2 a.m. without the teacher. Every box like this one is me. Boxes marked <b>Remember this</b> are memory tricks; boxes marked <b>Gotcha</b> are mistakes every single person makes once. Make them here, not in the quiz.</p>
+  </div></div>
+
+  <nav class="toc" aria-label="Contents"><b>Contents</b><ol>
+    <li><a href="#why">Why Rust</a></li><li><a href="#tools">Your toolbox</a></li><li><a href="#vars">Variables</a></li>
+    <li><a href="#types">Types</a></li><li><a href="#fns">Functions and expressions</a></li><li><a href="#flow">Control flow</a></li>
+    <li><a href="#print">Printing</a></li><li><a href="#cheat">Cheat sheet</a></li><li><a href="#practice">Practice questions</a></li>
+    <li><a href="#hw">Homework 1</a></li>
+  </ol></nav>
+
+  <h2 id="why">1. Why Rust</h2>
+  <p>Rust gives you the speed of C and C++ with a compiler that refuses to build programs that would corrupt memory. There's no garbage collector pausing your program, and no "it worked on my machine" segfaults.</p>
+  <p>The price is that the compiler is picky. Think of it as a very strict, very helpful lab partner: it won't let you hand in the work until it's right, but it always tells you exactly which line is wrong and usually how to fix it.</p>
+  <div class="callout mnemonic"><span class="tag">Remember this</span><p><b>Rust moves bugs left.</b> Picture a timeline: write, compile, run, ship. Rust drags bugs from "ship" all the way left to "compile", where they're cheap to fix and nobody's pager goes off.</p></div>
+
+  <h2 id="tools">2. Your toolbox</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Tool</th><th>Think of it as</th><th>Command</th></tr></thead>
+    <tbody>
+      <tr><td>rustup</td><td>The installer and updater</td><td><code>rustup update</code></td></tr>
+      <tr><td>cargo</td><td>The front door for everything</td><td><code>cargo new</code>, <code>run</code>, <code>build</code>, <code>check</code>, <code>test</code></td></tr>
+      <tr><td>rustfmt</td><td>The tidy roommate</td><td><code>cargo fmt</code></td></tr>
+      <tr><td>clippy</td><td>The opinionated mentor</td><td><code>cargo clippy</code></td></tr>
+    </tbody>
+  </table></div>
+  <p><code>cargo new my_app</code> makes a folder with <code>Cargo.toml</code> (the project's ID card) and <code>src/main.rs</code> (where <code>fn main</code> lives). <code>cargo run</code> compiles and runs it. <code>cargo check</code> only checks it, and it's the fastest way to find out whether your code compiles.</p>
+  <div class="callout mnemonic"><span class="tag">Remember this</span><p><b>Check, Run, Release.</b> <code>cargo check</code> while you type, <code>cargo run</code> to try it, <code>cargo build --release</code> when it has to be fast. Debug builds are for you; release builds are for everyone else.</p></div>
+
+  <h2 id="vars">3. Variables: let it be</h2>
+  <pre data-run>fn main() {
+    let battery = 100; // immutable: Robbie's battery label never changes
+    let mut distance = 0; // mut: we promise this will change
+    distance += 5;
+    distance += 3;
+    println!("battery {battery}%, drove {distance} m");
+}</pre>
+  <div class="callout mnemonic"><span class="tag">Remember this</span><p><b>"Let it be, unless you mut."</b> Every variable is frozen unless you write <code>mut</code>. Rust makes you ask permission to change things, the way a museum makes you ask before touching the exhibits.</p></div>
+  <div class="callout gotcha"><span class="tag">Gotcha</span><p>Forgetting <code>mut</code> gives <code>error[E0384]: cannot assign twice to immutable variable</code>. The fix is in the error message: "help: consider making this binding mutable". Rust error messages are like a GPS that also tells you why you took the wrong turn.</p></div>
+
+  <h3>Constants</h3>
+  <p><code>const MAX_SPEED_KMH: u32 = 12;</code> needs a type, uses SCREAMING_SNAKE_CASE (because constants are loud and proud), and is fixed when the program compiles.</p>
+
+  <h3>Shadowing</h3>
+  <pre data-run>fn main() {
+    let reading = "42";
+    let reading: i32 = reading.parse().unwrap();
+    let reading = reading * 2;
+    println!("{reading}");
+}</pre>
+  <p>Each <code>let</code> makes a <b>new</b> variable that hides the old one. Because it's new, its type can change: here from text to a number. <code>mut</code> can't do that.</p>
+  <div class="callout mnemonic"><span class="tag">Remember this</span><p><b>Shadowing is a costume change, mut is a haircut.</b> A costume change can make you a whole different character (a new type). A haircut changes how you look, but you're still the same type of person.</p></div>
+
+  <h2 id="types">4. Types</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Type</th><th>Holds</th><th>Range or size</th></tr></thead>
+    <tbody>
+      <tr><td><code>i8</code> / <code>u8</code></td><td>Small integers</td><td>-128 to 127 / 0 to 255</td></tr>
+      <tr><td><code>i32</code></td><td>The default integer</td><td>about ±2.1 billion</td></tr>
+      <tr><td><code>u64</code></td><td>Big non-negative integers</td><td>0 to about 18 quintillion</td></tr>
+      <tr><td><code>usize</code></td><td>Sizes and indexes</td><td>Pointer-sized: 64 bits on most machines</td></tr>
+      <tr><td><code>f64</code></td><td>Decimals (default float)</td><td>About 15 significant digits</td></tr>
+      <tr><td><code>bool</code></td><td><code>true</code> or <code>false</code></td><td>1 byte</td></tr>
+      <tr><td><code>char</code></td><td>One Unicode character, single quotes</td><td>4 bytes</td></tr>
+      <tr><td><code>(i32, f64)</code></td><td>Tuple: fixed, mixed types</td><td>Access with <code>.0</code>, <code>.1</code></td></tr>
+      <tr><td><code>[u8; 4]</code></td><td>Array: fixed length, one type</td><td>Length is part of the type</td></tr>
+    </tbody>
+  </table></div>
+  <div class="callout mnemonic"><span class="tag">Remember this</span><p><b>i is for "I can go negative". u is for "u can't".</b> The number after it is how many bits you get. And <code>usize</code> is "you size": sized to fit your machine.</p></div>
+  <div class="callout gotcha"><span class="tag">Gotcha</span><p>Overflow: <code>let x: u8 = 255; x + 1</code> panics in a debug build and wraps to 0 in release. When it can happen, say what you want: <code>checked_add</code> (gives <code>None</code>), <code>wrapping_add</code> (wraps like a car odometer) or <code>saturating_add</code> (sticks at 255 like a full glass).</p></div>
+  <div class="callout compare"><span class="tag">Coming from C, C++ or Python</span><p>C's <code>int</code> size depends on the platform; Rust's <code>i32</code> is always 32 bits. Python integers never overflow; Rust's do, but loudly. And Rust never converts between number types silently: <code>let x: f64 = 5;</code> fails, write <code>5.0</code> or <code>5 as f64</code>.</p></div>
+
+  <h2 id="fns">5. Functions and expressions</h2>
+  <pre data-run>fn add_charge(level: u32, charge: u32) -> u32 {
+    (level + charge).min(100)
+}
+
+fn main() {
+    println!("{}", add_charge(70, 45));
+}</pre>
+  <p>Parameters always have types. The <code>-&gt; u32</code> says what comes back. The last expression in the body, <b>without a semicolon</b>, is the return value. You can also write <code>return x;</code> to leave early.</p>
+  <div class="callout mnemonic"><span class="tag">Remember this</span><p><b>The semicolon is a mute button.</b> Put one on the last line and the value goes silent, and the function returns <code>()</code>, the empty "nothing" value. Then the compiler complains: "expected u32, found ()". Translation: you muted your answer.</p></div>
+  <p>Blocks <code>{ }</code>, <code>if</code>, <code>match</code> and <code>loop</code> are all expressions, so they can sit on the right side of <code>=</code>:</p>
+  <pre data-run>fn main() {
+    let level = 85;
+    let label = if level > 80 { "zoomy" } else { "ok" };
+    println!("{label}");
+}</pre>
+  <div class="callout gotcha"><span class="tag">Gotcha</span><p>Both branches of an <code>if</code> expression must have the same type. <code>if ok { 1 } else { "no" }</code> fails, because Rust has to know the type of the variable before the program runs.</p></div>
+
+  <h2 id="flow">6. Control flow</h2>
+  <ul>
+    <li><code>loop { }</code> runs forever until <code>break</code>. It can return a value: <code>break 42;</code></li>
+    <li><code>while cond { }</code> runs while the condition is true.</li>
+    <li><code>for x in 1..=3 { }</code> runs over a range or anything you can iterate. This is the one you'll use most.</li>
+  </ul>
+  <div class="callout mnemonic"><span class="tag">Remember this</span><p><b>Two dots stop short, dot-dot-equals goes all the way.</b> <code>1..4</code> gives 1, 2, 3. <code>1..=4</code> gives 1, 2, 3, 4. The <code>=</code> means "and include the end, please".</p></div>
+  <div class="callout gotcha"><span class="tag">Gotcha</span><p><code>if count { }</code> doesn't compile if <code>count</code> is a number. Rust has no "truthy" values. Write <code>if count &gt; 0</code>. Yes, even Python people. Especially Python people.</p></div>
+
+  <h2 id="print">7. Printing</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Write</th><th>Get</th></tr></thead>
+    <tbody>
+      <tr><td><code>println!("{x}")</code></td><td>The value of <code>x</code>, for people (Display)</td></tr>
+      <tr><td><code>println!("{x:?}")</code></td><td>The value for programmers (Debug); works on tuples and arrays</td></tr>
+      <tr><td><code>{:.2}</code></td><td>Two decimal places</td></tr>
+      <tr><td><code>{:&gt;8}</code> <code>{:&lt;8}</code> <code>{:^8}</code></td><td>Right, left, centre in 8 columns</td></tr>
+      <tr><td><code>format!(...)</code></td><td>Same rules, but gives you a <code>String</code> instead of printing</td></tr>
+      <tr><td><code>eprintln!</code></td><td>Prints to standard error</td></tr>
+    </tbody>
+  </table></div>
+  <div class="callout mnemonic"><span class="tag">Remember this</span><p><b>The question mark asks "what's inside?"</b> <code>{:?}</code> is Debug: it shows you the guts. <code>{}</code> is Display: the nice version for humans.</p></div>
+
+  <h2 id="cheat">Cheat sheet</h2>
+  <pre data-lang="rust" data-title="session 1 on one page">// project
+// cargo new app · cargo check · cargo run · cargo build --release
+// cargo fmt · cargo clippy -- -D warnings · cargo test
+
+const LIMIT: u32 = 100;          // constant: typed, fixed, LOUD
+
+fn half(n: i32) -> i32 {          // typed params, typed return
+    n / 2                         // no semicolon = return value
+}
+
+fn main() {
+    let a = 5;                    // immutable, i32 by default
+    let mut b = 0;                // mutable
+    b += a;
+    let a = a * 2;                // shadowing: new variable
+    let t: (i32, bool) = (1, true);
+    let arr = [1, 2, 3];          // [i32; 3]
+    let big = if b > 3 { "yes" } else { "no" };
+    for i in 0..arr.len() { println!("{i}: {}", arr[i]); }
+    for x in arr { println!("{x}"); }   // nicer
+    let n = loop { break 7; };
+    println!("{a} {b} {:?} {big} {n} {}", t, half(LIMIT as i32));
+}</pre>
+
+  <h2 id="practice">Practice questions</h2>
+  <p>Try each one before opening the answer. The quiz looks a lot like these.</p>
+  <details><summary>1. Does <code>let x = 5; x = 6;</code> compile?</summary><p>No: <code>x</code> is immutable. Write <code>let mut x = 5;</code>, or shadow it with <code>let x = 6;</code>.</p></details>
+  <details><summary>2. What's the type of <code>let n = 7;</code>?</summary><p><code>i32</code>, the default integer type, unless something later forces another type.</p></details>
+  <details><summary>3. What does <code>fn f() -&gt; i32 { 5; }</code> do?</summary><p>It fails to compile: the semicolon makes the body return <code>()</code>, not <code>i32</code>. Remove the semicolon.</p></details>
+  <details><summary>4. How many times does <code>for i in 0..3</code> run?</summary><p>Three times: 0, 1, 2.</p></details>
+  <details><summary>5. What's the difference between <code>{}</code> and <code>{:?}</code>?</summary><p><code>{}</code> uses Display (for people). <code>{:?}</code> uses Debug (for programmers) and works on more types, like tuples and arrays.</p></details>
+  <details><summary>6. Can shadowing change a variable's type? Can <code>mut</code>?</summary><p>Shadowing can, because it creates a new variable. <code>mut</code> can't; it only changes the value.</p></details>
+  <details><summary>7. What does <code>200u8.saturating_add(100)</code> give?</summary><p><code>255</code>: it stops at the maximum instead of overflowing.</p></details>
+  <details><summary>8. Which command is fastest for "does my code compile?"</summary><p><code>cargo check</code>. It skips producing a program.</p></details>
+  <details><summary>9. Why does <code>if 1 { }</code> fail?</summary><p>Conditions must be <code>bool</code>. Rust has no truthy numbers.</p></details>
+  <details><summary>10. What does <code>let v = loop { break 3; };</code> set <code>v</code> to?</summary><p><code>3</code>. A <code>loop</code> can return the value given to <code>break</code>.</p></details>
+
+  <h2 id="hw">Homework 1: Units Converter</h2>
+  <p><b>Due:</b> before Session 2. <b>Time:</b> 2 to 3 hours. <b>Folder:</b> <code>homework/hw1-units-converter</code> in the course repo.</p>
+  <p>The menu in <code>src/main.rs</code> is done. Your job is <code>src/lib.rs</code>: replace each <code>todo!()</code> with a real body.</p>
+  <ol>
+    <li><code>km_to_miles</code> and <code>miles_to_km</code>, using the <code>KM_PER_MILE</code> constant.</li>
+    <li><code>celsius_to_fahrenheit</code> and <code>fahrenheit_to_celsius</code>.</li>
+    <li><code>battery_bar(percent: u8) -&gt; String</code>: ten cells, <code>#</code> for each full 10%, <code>-</code> for the rest, then the percent. Over 100 counts as 100. <code>battery_bar(42)</code> is <code>"[####------] 42%"</code>.</li>
+    <li><code>battery_mood(percent: u8) -&gt; &amp;'static str</code>: "sleepy" under 20, "ok" under 80, "zoomy" otherwise.</li>
+  </ol>
+  <pre data-lang="sh" data-title="check your work">cargo test                      # 8 visible tests
+cargo clippy -- -D warnings     # no warnings allowed
+cargo fmt --check               # formatted the standard way
+cargo run                       # try the menu yourself</pre>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Graded on</th><th>Points</th></tr></thead>
+    <tbody>
+      <tr><td>Builds</td><td>2</td></tr><tr><td>Visible tests pass</td><td>3</td></tr><tr><td>Hidden tests pass (edge cases: 0, 100, 255, negatives)</td><td>3</td></tr>
+      <tr><td>clippy clean</td><td>1</td></tr><tr><td>fmt clean</td><td>1</td></tr>
+    </tbody>
+  </table></div>
+  <div class="callout robbie"><img src="../../assets/img/robbie-face.jpg" alt=""><div><span class="tag">Robbie says</span>
+    <p>Hint for <code>battery_bar</code>: <code>String::from("[")</code> gives you a growable string, <code>.push('#')</code> adds one character, and <code>.min(100)</code> caps a number. Also, -40 is the same in Celsius and Fahrenheit. Use that as a free test. You're welcome.</p>
+  </div></div>
+
+  <footer class="site"><a href="index.html">Back to Session 1</a> · <a href="quiz.html">Take Quiz 1</a></footer>
+</main>
+
+<script>
+window.ROBBIE_PAGE = {
+  greeting: "This is your handbook. Tap me if a section doesn't click and I'll try another angle.",
+  tips: [
+    "Do the practice questions before the quiz. They're the quiz's slightly easier cousins.",
+    "Stuck on an error? Run cargo check, then read only the FIRST error. Fix it. Repeat.",
+    "-40 degrees is the same in Celsius and Fahrenheit. That's a free test case for your homework."
+  ],
+  eli5: [
+    "mut is a permission slip. Without it, the variable can't change.",
+    "A type is the shape of a box. An i32 box only fits whole numbers; a bool box only fits true or false.",
+    "The semicolon at the end turns an answer into an action. No semicolon, and the line IS the answer."
+  ],
+  hype: ["Reading a handbook voluntarily? That's main-character energy.", "You're on page one of becoming a Rustacean. I'm on page one of becoming rust. We're both growing."]
+};
+</script>
+<script src="../../assets/js/course.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="../../assets/js/site.js"></script>
+<script src="../../assets/js/robbie.js"></script>
+<script type="module" src="../../assets/js/robbie3d.js"></script>
+</body>
+</html>

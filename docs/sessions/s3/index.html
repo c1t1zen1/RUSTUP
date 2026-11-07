@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Session 3: Building Blocks</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=IBM+Plex+Sans:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../assets/css/site.css">
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/" } }</script>
+</head>
+<body data-base="../.." data-page="s3" data-rust="2">
+<header class="topbar" data-crumbs='[{"t": "Course map", "href": "../../index.html"}, {"t": "Session 3"}]'></header>
+<main class="wrap">
+  <section class="hero">
+    <div>
+      <div class="hero-num"><span class="num" aria-hidden="true">03</span><p class="eyebrow">Session 3 · Week 2 · Monday</p></div>
+      <h1>Building <span class="r">Blocks</span></h1>
+      <p class="lede">Structs, enums, <code>match</code>, <code>Option</code> and <code>Result</code>, the <code>?</code> operator and modules. By the end, Robbie takes typed commands, and when he refuses one he tells you exactly why.</p>
+      <div class="rustmeter" style="--lvl:32%;max-width:320px"><span>Robbie's rust</span><i></i><span>32% · streaky</span></div>
+      <div class="cta-row">
+        <a class="btn primary" href="presentation.html">Open the slides</a>
+        <a class="btn" href="handbook.html">Read the handbook</a>
+      </div>
+    </div>
+    <!-- Video-ready: add data-video="assets/video/<name>.mp4" to this figure and the loop plays over the still. -->
+    <figure class="hero-img" style="margin:0">
+      <img src="../../assets/img/robbie-rust-2.jpg" alt="Robbie v11 in the studio about a third rusted, with streaks running down his armor from every seam" width="800" height="1000">
+      <figcaption>Robbie at Session 3. Those streaks are load-bearing.</figcaption>
+    </figure>
+  </section>
+
+  <h2>Session materials</h2>
+  <div class="mats">
+    <a class="mat" href="presentation.html"><span class="kind">Presentation · 60 min</span><b>Slides</b><span>24 slides with runnable code, a few broken on purpose. Arrow keys to move, N for the teacher's speaker notes.</span></a>
+    <a class="mat" href="handbook.html#cheat"><span class="kind">Cheat sheet</span><b>One page, all of Session 3</b><span>Structs, enums, match, Option, Result, ? and modules on one screen. Keep it open during the lab.</span></a>
+    <a class="mat" href="handbook.html"><span class="kind">Student Handbook</span><b>Building Blocks Handbook</b><span>Every idea from today with runnable examples, memory tricks, an error field guide and 10 practice questions.</span></a>
+    <a class="mat" href="quiz.html"><span class="kind">Quiz 3 · 15 min</span><b>Building Blocks Quiz</b><span>12 questions, pass mark 70%. Your best score is saved in this browser.</span></a>
+    <a class="mat" href="checkpoint.html"><span class="kind">Checkpoint 1 · take home</span><b>Review of Sessions 1 to 3</b><span>15 questions across cargo, ownership and today's types. Due before Session 4.</span></a>
+  </div>
+
+  <h2>Build it</h2>
+  <div class="mats">
+    <a class="mat" href="https://github.com/c1t1zen1/RUSTUP/tree/main/labs/lab3-command-parser"><span class="kind">Lab 3 · in class · 35 min</span><b>Robbie's Command Parser</b><span>Five steps, nine tests: turn typed lines into commands and drive Robbie around the studio floor.</span></a>
+    <a class="mat" href="https://github.com/c1t1zen1/RUSTUP/tree/main/homework/hw3-command-language"><span class="kind">Homework 3 · due Session 4</span><b>Command Language</b><span>Whole scripts, real error types and line numbers, split into modules. 8 visible tests plus hidden edge cases, scored out of 10.</span></a>
+  </div>
+
+  <h2>Topics</h2>
+  <ul id="topics" class="muted"></ul>
+
+  <div class="cta-row" style="margin-block:32px 48px">
+    <a class="btn" href="../../index.html">Back to the course map</a>
+  </div>
+</main>
+<script>
+window.ROBBIE_PAGE = {
+  "greeting": "Welcome to Session 3. I'm a third rust now, and the streaks run all the way down. Today we build types for everything, including my excuses.",
+  "tips": [
+    "Do the lab steps in order. cargo test step1, then step2, and so on.",
+    "If you remember one thing: Option means maybe nothing, Result means maybe failed."
+  ],
+  "eli5": [
+    "Today you learn to make your own kinds of things, and to say politely when something didn't work."
+  ],
+  "hype": [
+    "Session 3 is where Rust starts to feel like a superpower. Enums with data, I'm telling you."
+  ]
+};
+</script>
+<script src="../../assets/js/course.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="../../assets/js/site.js"></script>
+<script>
+(function(){ var s = window.RUSTUP && RUSTUP.sessions[2]; var ul = document.getElementById("topics");
+  if (s && ul) ul.innerHTML = s.topics.map(function(t){ return "<li>" + t + "</li>"; }).join(""); })();
+</script>
+<script src="../../assets/js/robbie.js"></script>
+<script type="module" src="../../assets/js/robbie3d.js"></script>
+</body>
+</html>

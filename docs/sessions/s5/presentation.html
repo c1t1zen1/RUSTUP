@@ -1,0 +1,638 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Many Robbies at Once Slides</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=IBM+Plex+Sans:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../assets/css/site.css">
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/" } }</script>
+</head>
+<body data-base="../.." data-page="s5-presentation" data-rust="4">
+<header class="topbar" data-crumbs='[{"t": "Course map", "href": "../../index.html"}, {"t": "Session 5", "href": "index.html"}, {"t": "Presentation"}]'></header>
+
+<main class="wrap deck">
+
+<section class="slide" data-robbie="Session 5. I&#x27;m 72% rust and dropping bits on the floor. So I&#x27;ve built helpers. Lots of helpers." data-emote="wave">
+  <p class="eyebrow">Session 5 · Week 3 · Monday</p>
+  <h2 style="font-size:clamp(2.6rem,8vw,5rem)">Many Robbies at Once</h2>
+  <p class="big-line">Smart pointers, threads, channels, async and tests: how to share data safely when more than one thing is running.</p>
+  <p class="muted">Press <kbd>→</kbd> to go on, <kbd>N</kbd> for speaker notes.</p>
+  <aside class="speaker">Robbie is 72% rust today: only patches of silver are left on his head, arms and shins, and he jokes that bits keep falling off. Running joke: he can't do everything himself any more, so he's built a swarm. Today's promise is Rust's slogan, "fearless concurrency": the same borrow rules from Session 2 now stop data races at compile time.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">Today's flight plan</p>
+  <h2>Two and a half hours</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Time</th><th>Block</th></tr></thead>
+    <tbody>
+      <tr><td>0:00</td><td>Homework 4 review</td></tr>
+      <tr><td>0:10</td><td>Smart pointers: <code>Box</code>, <code>Rc</code>, <code>RefCell</code></td></tr>
+      <tr><td>0:30</td><td>Threads, <code>move</code>, channels</td></tr>
+      <tr><td>0:50</td><td><code>Arc</code>, <code>Mutex</code>, <code>Send</code> and <code>Sync</code></td></tr>
+      <tr><td>1:05</td><td>Break (Robbie sweeps up his own bolts)</td></tr>
+      <tr><td>1:15</td><td>Async with tokio</td></tr>
+      <tr><td>1:30</td><td>Testing, and serde for JSON</td></tr>
+      <tr><td>1:45</td><td>Lab: Swarm Mode</td></tr>
+      <tr><td>2:15</td><td>Quiz 5, homework and Checkpoint 2 kickoff</td></tr>
+    </tbody>
+  </table></div>
+  <aside class="speaker">Homework 4 review: show a Garage::park that checked the budget before duplicates (the hidden test catches it), and one that mutated before refusing. Keep it to ten minutes; today is the densest session.</aside>
+</section>
+
+<section class="slide" data-robbie="Five of me, one floor. What could possibly go wrong? Rust has a list, and it checks it." data-emote="think">
+  <p class="eyebrow">The big idea</p>
+  <h2>Sharing is the hard part</h2>
+  <div class="two">
+    <div>
+      <p>One Robbie can't scan five rooms before it rains. Five Robbies can, if they don't trip over each other.</p>
+      <p>Two bots writing the same tally at the same moment is a <b>data race</b>. In most languages it's a bug you find on a Friday night. In Rust it doesn't compile.</p>
+    </div>
+    <div class="callout mnemonic"><span class="tag">Remember this</span><p><b>Many readers or one writer, now across threads.</b> The rule from Session 2 didn't change. Today's types are the tools for following it when ownership gets complicated.</p></div>
+  </div>
+  <aside class="speaker">Concurrency means juggling several jobs; parallelism means doing them literally at the same time on different cores. Threads give both, async gives cheap concurrency. Everything today is a way to answer "who owns this, and who may change it?" when one owner isn't enough.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">Box</p>
+  <h2>One value on the heap</h2>
+  <pre data-run>fn main() {
+    // A Box puts one value on the heap and owns it. The Box itself is just a pointer.
+    let battery = Box::new(87_u32);
+    println!("battery: {battery}%"); // a Box acts like the value inside it
+    println!("plus 10: {}", *battery + 10); // * reaches in when you need to
+
+    let spare: Box&lt;[u8; 1000]&gt; = Box::new([0; 1000]); // a big value, kept off the stack
+    println!("spare parts bin holds {} slots", spare.len());
+} // both Boxes are dropped here, and the heap memory goes with them</pre>
+  <ul>
+    <li><code>Box::new(x)</code> moves <code>x</code> to the heap. The Box is a pointer that owns it.</li>
+    <li>It behaves like the value inside. <code>*</code> reaches in when you need it.</li>
+    <li>You met it in Session 4: <code>Box&lt;dyn Bot&gt;</code> held different bots in one Vec.</li>
+  </ul>
+  <aside class="speaker">Three reasons to box: a value whose size isn't known at compile time (dyn Trait, recursive types), a big value you don't want to copy around on the stack, and handing over ownership of a trait object. A Box is freed when its owner goes out of scope, same as any value.</aside>
+</section>
+
+<section class="slide" data-robbie="A route inside a route inside a route. Like my to-do list. The Box makes it finite. My list isn&#x27;t." data-emote="look">
+  <p class="eyebrow">Box for recursive types</p>
+  <h2>A type that contains itself</h2>
+  <p class="muted">Fails on purpose (E0072). Press Run and read the error.</p>
+  <pre data-run>// A route is either the end, or one step followed by the rest of the route.
+#[derive(Debug)]
+enum Route {
+    Step(char, Route),
+    End,
+}
+
+fn main() {
+    let r = Route::Step('N', Route::End);
+    println!("{r:?}");
+}</pre>
+  <p>A <code>Route</code> holds a <code>Route</code>, which holds a <code>Route</code>... The compiler can't work out its size (E0072). Put the inner one in a Box, which is always one pointer wide:</p>
+  <pre data-run>#[derive(Debug)]
+enum Route {
+    Step(char, Box&lt;Route&gt;), // a Box has a known size, so Route does too
+    End,
+}
+
+fn letters(r: &amp;Route) -&gt; String {
+    match r {
+        Route::Step(c, rest) =&gt; format!("{c}{}", letters(rest)),
+        Route::End =&gt; String::new(),
+    }
+}
+
+fn main() {
+    let r = Route::Step('N', Box::new(Route::Step('E', Box::new(Route::End))));
+    println!("{r:?}");
+    println!("route: {}", letters(&amp;r));
+}</pre>
+  <aside class="speaker">This is a linked list, and you'll rarely write one in real Rust (Vec is almost always better). But trees, parsers and expression evaluators all need it. The error message itself suggests the Box fix; point that out.</aside>
+</section>
+
+<section class="slide" data-robbie="Three bots, one map, a counter of owners. When the counter hits zero, the map goes in the bin.">
+  <p class="eyebrow">Rc</p>
+  <h2>More than one owner</h2>
+  <pre data-run>use std::rc::Rc;
+
+#[derive(Debug)]
+struct Map {
+    name: String,
+}
+
+fn main() {
+    // Three bots, one map. Nobody can say which bot finishes with it last.
+    let studio = Rc::new(Map {
+        name: String::from("studio floor plan"),
+    });
+    let robbie = Rc::clone(&amp;studio); // not a copy of the map, just one more owner
+    let zippy = Rc::clone(&amp;studio);
+
+    println!(
+        "{} owners of the {}",
+        Rc::strong_count(&amp;studio),
+        robbie.name
+    );
+    drop(zippy);
+    println!("{} owners after Zippy leaves", Rc::strong_count(&amp;studio));
+} // the last owner goes, and the map is freed</pre>
+  <p><code>Rc</code> is a <b>reference-counted</b> pointer. <code>Rc::clone</code> doesn't copy the map, it adds an owner and bumps the count. When the last owner goes, the map is freed.</p>
+  <div class="callout mnemonic"><span class="tag">Remember this</span><p><b>Rc is a library card.</b> Many people can borrow the book. It goes back on the shelf when the last card is handed in. Rc is read-only, and single-thread only.</p></div>
+  <aside class="speaker">Write Rc::clone(&amp;x), not x.clone(): both work, but the first tells the reader it's cheap. Rc can leak with cycles (a parent and child pointing at each other); Weak breaks cycles. Mention it, don't teach it.</aside>
+</section>
+
+<section class="slide" data-robbie="RefCell is the borrow checker on night shift. Same rules, but it shouts at run time instead." data-emote="think">
+  <p class="eyebrow">RefCell</p>
+  <h2>Change it anyway, checked at run time</h2>
+  <pre data-run>use std::cell::RefCell;
+use std::rc::Rc;
+
+fn main() {
+    // One shared log that several owners can write to.
+    let log = Rc::new(RefCell::new(Vec::new()));
+    let robbie_log = Rc::clone(&amp;log);
+    let zippy_log = Rc::clone(&amp;log);
+
+    robbie_log.borrow_mut().push("Robbie: oiled left knee");
+    zippy_log.borrow_mut().push("Zippy: filmed the oiling");
+    robbie_log.borrow_mut().push("Robbie: knee still squeaks");
+
+    for line in log.borrow().iter() {
+        println!("{line}");
+    }
+}</pre>
+  <p><code>Rc</code> only hands out shared access. Wrap the value in a <code>RefCell</code> and you can <code>borrow_mut()</code> through a shared pointer. The borrow rules still apply, but they're checked while the program runs:</p>
+  <p class="muted">Compiles, then panics on purpose. Press Run and read the message.</p>
+  <pre data-run>use std::cell::RefCell;
+
+fn main() {
+    let parts = RefCell::new(vec!["knee", "elbow"]);
+    let reading = parts.borrow(); // a shared borrow, checked at run time
+    parts.borrow_mut().push("antenna"); // a &amp;mut while it's still alive: panic
+    println!("{reading:?}");
+}</pre>
+  <aside class="speaker">This is "interior mutability". RefCell trades a compile-time error for a run-time panic ("already borrowed"), so keep borrows short: borrow, use, let it drop on the same line. Rc&lt;RefCell&lt;T&gt;&gt; is the single-thread "shared and changeable" combo; Arc&lt;Mutex&lt;T&gt;&gt; is the thread version, coming up.</aside>
+</section>
+
+<section class="slide" data-robbie="Box owns, Rc shares, RefCell changes, A means Atomic. Say it four times. I said it forty. Rust flakes." data-emote="happy">
+  <p class="eyebrow">Which pointer?</p>
+  <h2>The smart pointer picker</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>You need</th><th>One thread</th><th>Many threads</th></tr></thead>
+    <tbody>
+      <tr><td>One owner, on the heap</td><td><code>Box&lt;T&gt;</code></td><td><code>Box&lt;T&gt;</code></td></tr>
+      <tr><td>Many owners, read only</td><td><code>Rc&lt;T&gt;</code></td><td><code>Arc&lt;T&gt;</code></td></tr>
+      <tr><td>Many owners, and change it</td><td><code>Rc&lt;RefCell&lt;T&gt;&gt;</code></td><td><code>Arc&lt;Mutex&lt;T&gt;&gt;</code></td></tr>
+    </tbody>
+  </table></div>
+  <div class="callout mnemonic"><span class="tag">Remember this</span><p><b>Box owns, Rc shares, RefCell lets you change, and A means Atomic: safe across threads.</b> Read the type from outside in: <code>Arc&lt;Mutex&lt;u32&gt;&gt;</code> is "shared across threads, a lock, a number".</p></div>
+  <aside class="speaker">Leave this slide up during the lab. The question to ask every time: how many owners, how many threads, does anyone change it? Three answers, one cell of the table.</aside>
+</section>
+
+<section class="slide" data-robbie="Run it twice. The order changes. That&#x27;s not a bug. That&#x27;s two Robbies who don&#x27;t wait for each other.">
+  <p class="eyebrow">Threads</p>
+  <h2>A second Robbie, right now</h2>
+  <pre data-run>use std::thread;
+use std::time::Duration;
+
+fn main() {
+    let handle = thread::spawn(|| {
+        for i in 1..=3 {
+            println!("  helper Robbie: sweep {i}");
+            thread::sleep(Duration::from_millis(10));
+        }
+        "floor swept" // the thread's answer
+    });
+
+    for i in 1..=3 {
+        println!("main Robbie: polish {i}");
+        thread::sleep(Duration::from_millis(10));
+    }
+
+    let answer = handle.join().unwrap(); // wait for it, and get its answer
+    println!("helper says: {answer}");
+}</pre>
+  <ul>
+    <li><code>thread::spawn</code> runs a closure on a new thread and returns a <code>JoinHandle</code>.</li>
+    <li><code>join()</code> waits for it and gives back what the closure returned.</li>
+    <li>The lines interleave differently on every run. That's normal, and it's why tests must never depend on thread order.</li>
+  </ul>
+  <aside class="speaker">Press Run twice and compare the output order. When main returns, the whole program ends, including unfinished threads: that's why we join. A thread costs a few kilobytes to megabytes of stack and an OS call to start, so thousands are fine, millions aren't (which is where async comes in).</aside>
+</section>
+
+<section class="slide" data-robbie="A thread packs its own suitcase. move means: take it with you, I won&#x27;t need it." data-emote="look">
+  <p class="eyebrow">move closures</p>
+  <h2>The thread takes its things with it</h2>
+  <p class="muted">Fails on purpose (E0373). Press Run and read the error.</p>
+  <pre data-run>use std::thread;
+
+fn main() {
+    let rooms = vec!["studio", "workshop"];
+    let handle = thread::spawn(|| {
+        println!("scanning {rooms:?}"); // borrows rooms, but main might drop it first
+    });
+    handle.join().unwrap();
+}</pre>
+  <p>The thread might outlive <code>main</code>'s <code>rooms</code>, so borrowing it is refused (E0373). Add <code>move</code> and the thread owns it:</p>
+  <pre data-run>use std::thread;
+
+fn main() {
+    let rooms = vec!["studio", "workshop"];
+    let handle = thread::spawn(move || {
+        // move: the thread owns rooms now, so it can't dangle
+        println!("scanning {rooms:?}");
+        rooms.len()
+    });
+    println!("scanned {} rooms", handle.join().unwrap());
+}</pre>
+  <aside class="speaker">The error message suggests move, exactly. After the move, main can't use rooms any more (Session 2: ownership moved). If main still needs it, clone it first and move the clone, or use scoped threads (a few slides on).</aside>
+</section>
+
+<section class="slide" data-robbie="Channels are pneumatic tubes. Put a message in, it pops out somewhere else. Mine are rusted shut, but yours work.">
+  <p class="eyebrow">Channels</p>
+  <h2>Pass messages, not memory</h2>
+  <pre data-run>use std::sync::mpsc;
+use std::thread;
+
+fn main() {
+    let (tx, rx) = mpsc::channel(); // tx sends, rx receives
+
+    for name in ["Robbie", "Zippy", "Dusty"] {
+        let tx = tx.clone(); // one sender per thread
+        thread::spawn(move || {
+            tx.send(format!("{name}: room clear")).unwrap();
+        });
+    }
+    drop(tx); // drop the first sender too, or the loop below never ends
+
+    for msg in rx {
+        // waits for each message, stops when every sender is gone
+        println!("{msg}");
+    }
+}</pre>
+  <p><code>mpsc::channel()</code> gives a sender and a receiver: <b>m</b>ultiple <b>p</b>roducer, <b>s</b>ingle <b>c</b>onsumer. Clone the sender for each thread. Looping over the receiver waits for each message and ends when every sender is gone.</p>
+  <div class="callout mnemonic"><span class="tag">Remember this</span><p><b>Drop the first sender.</b> If your loop over <code>rx</code> never ends, the original <code>tx</code> is still alive in <code>main</code>.</p></div>
+  <aside class="speaker">Go's proverb: don't communicate by sharing memory; share memory by communicating. send() moves the value into the channel, so the sending thread can't touch it afterwards. That's why channels can't race. Lab step 2 has this exact hang as a trap.</aside>
+</section>
+
+<section class="slide" data-robbie="A Mutex is the bathroom key on a giant spanner. One bot at a time. Hand it back when you&#x27;re done." data-emote="happy">
+  <p class="eyebrow">Arc and Mutex</p>
+  <h2>One counter, many hands</h2>
+  <pre data-run>use std::sync::{Arc, Mutex};
+use std::thread;
+
+fn main() {
+    let squeaks = Arc::new(Mutex::new(0)); // shared and safe to change
+    let mut handles = Vec::new();
+
+    for _ in 0..4 {
+        let squeaks = Arc::clone(&amp;squeaks);
+        handles.push(thread::spawn(move || {
+            for _ in 0..100 {
+                *squeaks.lock().unwrap() += 1; // lock, change, unlock at the ;
+            }
+        }));
+    }
+    for h in handles {
+        h.join().unwrap();
+    }
+    println!("total squeaks: {}", squeaks.lock().unwrap());
+}</pre>
+  <ul>
+    <li><code>Arc</code> is <code>Rc</code> with an atomic count, so it's safe to share across threads.</li>
+    <li><code>Mutex</code> lets one thread at a time in. <code>lock()</code> waits your turn and hands you a guard.</li>
+    <li>The guard unlocks when it's dropped. Here that's at the end of the statement.</li>
+  </ul>
+  <aside class="speaker">Four threads, a hundred bumps each, always exactly 400. Ask the room what C would print without the lock (anything up to 400). lock() returns a Result because a thread that panicked while holding the lock "poisons" it; unwrap is fine in class. Deadlock is still possible: two locks taken in different orders. Rust stops races, not deadlocks.</aside>
+</section>
+
+<section class="slide" data-robbie="Send means it can travel. Sync means it can be shared. Rc can do neither. Rc is a homebody." data-emote="think">
+  <p class="eyebrow">Send and Sync</p>
+  <h2>Why Rc can't go to another thread</h2>
+  <p class="muted">Fails on purpose (E0277). Press Run and read the error.</p>
+  <pre data-run>use std::rc::Rc;
+use std::thread;
+
+fn main() {
+    let map = Rc::new(String::from("studio floor plan"));
+    let copy = Rc::clone(&amp;map);
+    thread::spawn(move || {
+        println!("{copy}");
+    })
+    .join()
+    .unwrap();
+}</pre>
+  <p><code>Rc</code>'s counter isn't atomic, so two threads could corrupt it. Rust marks it as not <code>Send</code>, and <code>thread::spawn</code> requires <code>Send</code> (E0277). Swap in <code>Arc</code> and it compiles.</p>
+  <ul>
+    <li><b>Send</b>: safe to move to another thread.</li>
+    <li><b>Sync</b>: safe to share by reference between threads.</li>
+    <li>The compiler works both out for your own types. You almost never write them.</li>
+  </ul>
+  <aside class="speaker">These are marker traits: no methods, just a promise. A struct is Send if all its fields are. That's the "fearless" part: the compiler tracks thread safety through every type you build. Lab README asks students to make this exact mistake once, on purpose.</aside>
+</section>
+
+<section class="slide" data-robbie="Scoped threads are a school trip. Everyone comes back before the bus leaves. So they can borrow the snacks.">
+  <p class="eyebrow">Scoped threads</p>
+  <h2>Borrow, as long as everyone's home by dinner</h2>
+  <pre data-run>use std::thread;
+
+fn main() {
+    let readings = vec![12, 40, 7, 33, 21, 9];
+    let (left, right) = readings.split_at(readings.len() / 2);
+
+    // Scoped threads must finish before scope returns, so they may borrow.
+    let total = thread::scope(|s| {
+        let a = s.spawn(|| left.iter().sum::&lt;u32&gt;());
+        let b = s.spawn(|| right.iter().sum::&lt;u32&gt;());
+        a.join().unwrap() + b.join().unwrap()
+    });
+    println!("total dust: {total}, and readings is still ours: {readings:?}");
+}</pre>
+  <p>Threads started inside <code>thread::scope</code> must finish before it returns, so they can borrow local data. No <code>move</code>, no <code>Arc</code>, and <code>readings</code> is still yours afterwards.</p>
+  <aside class="speaker">thread::scope is newer (Rust 1.63) and is often the cleanest answer for "split this work across cores". Lab step 4 uses it with chunks(). The scope joins any thread you didn't join yourself.</aside>
+</section>
+
+<section class="slide" data-robbie="A future is a sticky note that says &#x27;beep later&#x27;. Nothing beeps until someone reads the note. With .await." data-emote="look">
+  <p class="eyebrow">Async</p>
+  <h2>Waiting without a thread each</h2>
+  <pre data-run>async fn beep() {
+    println!("beep!");
+}
+
+#[tokio::main]
+async fn main() {
+    let later = beep(); // nothing happens yet: a future is a plan, not an action
+    println!("plan made");
+    later.await; // now it runs
+    beep().await;
+}</pre>
+  <p>An <code>async fn</code> returns a <b>future</b>: a plan to do something. Nothing runs until you <code>.await</code> it. A runtime like <b>tokio</b> runs thousands of futures on a few threads, switching whenever one is waiting.</p>
+  <aside class="speaker">Futures are lazy, like iterators in Session 4. The classic beginner bug is calling an async fn and forgetting .await; the compiler warns "unused future". #[tokio::main] turns main into an async fn and starts the runtime. These run on the Playground because tokio is one of its preinstalled crates.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">tokio</p>
+  <h2>Three scans, one wait</h2>
+  <pre data-run>use std::time::Duration;
+use tokio::time::sleep;
+
+async fn scan(room: &amp;str, ms: u64) -&gt; String {
+    sleep(Duration::from_millis(ms)).await; // waiting, without blocking a thread
+    format!("{room}: clear")
+}
+
+#[tokio::main]
+async fn main() {
+    // join! runs all three at once and waits for every one.
+    let (a, b, c) = tokio::join!(scan("studio", 30), scan("workshop", 10), scan("roof", 20));
+    println!("{a} | {b} | {c}");
+}</pre>
+  <p><code>tokio::join!</code> runs several futures at once and waits for all of them. The whole thing takes about as long as the slowest scan, not the sum.</p>
+  <pre data-lang="toml" data-title="Cargo.toml">[dependencies]
+tokio = { version = "1", features = ["full"] }</pre>
+  <aside class="speaker">Use tokio::time::sleep, never std::thread::sleep, inside async code: the std one blocks the whole worker thread, so every other task on it stops too. Same for heavy CPU work; that belongs on spawn_blocking or a plain thread.</aside>
+</section>
+
+<section class="slide" data-robbie="Threads are extra Robbies. Async tasks are one Robbie with a very good to-do list." data-emote="happy">
+  <p class="eyebrow">tokio::spawn</p>
+  <h2>Tasks: threads that cost almost nothing</h2>
+  <pre data-run>use std::time::Duration;
+use tokio::time::sleep;
+
+#[tokio::main]
+async fn main() {
+    let mut tasks = Vec::new();
+    for (i, room) in ["studio", "workshop", "lobby"].into_iter().enumerate() {
+        // spawn starts a task right away, like thread::spawn but far cheaper
+        tasks.push(tokio::spawn(async move {
+            sleep(Duration::from_millis(10 * (3 - i as u64))).await;
+            room.len()
+        }));
+    }
+    let mut total = 0;
+    for t in tasks {
+        total += t.await.unwrap(); // a JoinHandle you .await instead of join()
+    }
+    println!("{total} letters of rooms scanned");
+}</pre>
+  <div class="tablewrap"><table>
+    <thead><tr><th></th><th>Threads</th><th>Async tasks</th></tr></thead>
+    <tbody>
+      <tr><td>Best for</td><td>Heavy computing on every core</td><td>Lots of waiting: network, files, timers</td></tr>
+      <tr><td>Start one</td><td><code>thread::spawn</code></td><td><code>tokio::spawn</code></td></tr>
+      <tr><td>Wait for it</td><td><code>handle.join()</code></td><td><code>handle.await</code></td></tr>
+      <tr><td>How many</td><td>Hundreds</td><td>Hundreds of thousands</td></tr>
+    </tbody>
+  </table></div>
+  <aside class="speaker">A web server is the classic async case: ten thousand connections, each mostly waiting. A ray tracer is the classic thread case. Final project hint: Robbie Mission Control has a stretch goal with async; the core is fine with threads.</aside>
+</section>
+
+<section class="slide" data-robbie="Tests are me checking my own bolts every morning. Fewer surprises. Fewer bolts, too, lately.">
+  <p class="eyebrow">Testing</p>
+  <h2>Tests live next to the code</h2>
+  <pre data-run>/// Percent of a battery left after `minutes` of work, never below 0.
+pub fn battery_after(start: u32, minutes: u32) -&gt; u32 {
+    start.saturating_sub(minutes / 2)
+}
+
+fn main() {
+    println!("{}% left", battery_after(80, 30));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn drains_one_percent_per_two_minutes() {
+        assert_eq!(battery_after(80, 30), 65);
+    }
+
+    #[test]
+    fn never_goes_negative() {
+        assert_eq!(battery_after(10, 500), 0);
+    }
+
+    #[test]
+    #[should_panic]
+    fn indexing_past_the_end_panics() {
+        let parts = [1, 2, 3];
+        let _ = parts[parts.len()];
+    }
+}</pre>
+  <pre data-lang="sh" data-title="terminal">cargo test                  # every test
+cargo test never_goes       # only tests whose name matches
+cargo test -- --nocapture   # show println! output from tests</pre>
+  <aside class="speaker">#[cfg(test)] means the module only exists when testing, so test helpers never ship. use super::* brings the outer functions in. Press Run here and you get main; cargo test runs the three tests. should_panic tests that something panics; it's how you test "this must refuse".</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">Testing, part 2</p>
+  <h2>Three places tests go</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Where</th><th>What it tests</th><th>Sees private code?</th></tr></thead>
+    <tbody>
+      <tr><td><code>mod tests</code> in <code>src/</code></td><td>One function at a time</td><td>Yes</td></tr>
+      <tr><td><code>tests/*.rs</code></td><td>Your crate from the outside, like a user would</td><td>No, only <code>pub</code></td></tr>
+      <tr><td><code>///</code> doc comments</td><td>The examples in your docs actually work</td><td>No, only <code>pub</code></td></tr>
+    </tbody>
+  </table></div>
+  <pre data-lang="rust" data-title="src/lib.rs">/// Adds dust readings.
+///
+/// ```
+/// assert_eq!(swarm_mode::scoped_sum(&amp;[1, 2, 3], 2), 6);
+/// ```
+pub fn scoped_sum(readings: &amp;[u32], parts: usize) -&gt; u32 {</pre>
+  <aside class="speaker">Every lab and homework so far used tests/*.rs: integration tests. The hidden grading tests are just one more file in tests/. Homework 5 is the first time students write their own: at least three, in tests/mine.rs. A good test name says the rule: never_goes_negative, not test2.</aside>
+</section>
+
+<section class="slide" data-robbie="serde writes the JSON code for you. One derive line. I&#x27;d have saved a fortune on hand-written parsers." data-emote="happy">
+  <p class="eyebrow">serde</p>
+  <h2>Structs to JSON and back</h2>
+  <pre data-run>use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Serialize, Deserialize)]
+struct Bot {
+    name: String,
+    rust: u8,
+    parts: Vec&lt;String&gt;,
+}
+
+fn main() -&gt; Result&lt;(), serde_json::Error&gt; {
+    let robbie = Bot {
+        name: String::from("Robbie"),
+        rust: 72,
+        parts: vec![String::from("chest plate"), String::from("left knee")],
+    };
+    let text = serde_json::to_string_pretty(&amp;robbie)?; // struct to JSON
+    println!("{text}");
+
+    let back: Bot = serde_json::from_str(r#"{"name":"Zippy","rust":3,"parts":[]}"#)?; // and back
+    println!("{back:?}");
+
+    let broken: Result&lt;Bot, _&gt; = serde_json::from_str(r#"{"name":"Dusty"}"#);
+    println!("{}", broken.unwrap_err()); // a missing field is an error, not a guess
+    Ok(())
+}</pre>
+  <pre data-lang="toml" data-title="Cargo.toml">[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"</pre>
+  <aside class="speaker">serde is the most downloaded crate there is. #[derive(Serialize, Deserialize)] writes all the conversion code. Notice what happens with a missing field: an error with a clear message, not a silent default. #[serde(default)] opts in to defaults per field. Homework 5 reads its config this way.</aside>
+</section>
+
+<section class="slide" data-robbie="Six problems. Two of them don&#x27;t even get an error number. Those are the sneaky ones." data-emote="look">
+  <p class="eyebrow">Error field guide</p>
+  <h2>Six errors you'll meet this week</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Code</th><th>What it means</th><th>Usual fix</th></tr></thead>
+    <tbody>
+      <tr><td><code>E0072</code></td><td>A type contains itself, so it has no fixed size</td><td>Put the inner one in a <code>Box</code></td></tr>
+      <tr><td><code>E0373</code></td><td>A thread borrows something that might not outlive it</td><td><code>move</code>, or <code>thread::scope</code></td></tr>
+      <tr><td><code>E0277</code> (Send)</td><td><code>Rc</code> or <code>RefCell</code> sent to another thread</td><td><code>Arc</code> and <code>Mutex</code></td></tr>
+      <tr><td><code>E0382</code></td><td>Used a value after <code>move</code> gave it to a thread</td><td>Clone it before the closure</td></tr>
+      <tr><td>panic: already borrowed</td><td>Two <code>RefCell</code> borrows at once, one mutable</td><td>Keep borrows short, one line</td></tr>
+      <tr><td>a hang</td><td>A channel loop waiting for a sender that's still alive</td><td><code>drop(tx)</code></td></tr>
+    </tbody>
+  </table></div>
+  <aside class="speaker">Two of these aren't compiler errors at all: the RefCell panic and the channel hang. Those are the ones that cost students the most time, so name them now. Deadlocks belong on this list too, but they're rarer at this level.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">Lab · 30 minutes</p>
+  <h2>Swarm Mode</h2>
+  <div class="two">
+    <div>
+      <p>In <code>labs/lab5-swarm-mode</code>, five Robbies scan five rooms. Spread the work across threads, five different ways.</p>
+      <pre data-lang="sh" data-title="terminal">cargo test step1   # scan_rooms: spawn, move, join
+cargo test step2   # total_dust: a channel
+cargo test step3   # count_squeaks: Arc&lt;Mutex&lt;u32&gt;&gt;
+cargo test step4   # scoped_sum: thread::scope
+cargo test step5   # run_jobs: a worker pool
+cargo run          # the whole swarm</pre>
+    </div>
+    <div class="callout robbie"><img src="../../assets/img/robbie-face.jpg" alt=""><div><span class="tag">Robbie's rules</span>
+      <p>Collect every handle before you join any. Join inside the spawn loop and my five helpers take turns. That's just me, five times, slowly.</p>
+    </div></div>
+  </div>
+  <aside class="speaker">Step 5 is the stretch: Arc&lt;Mutex&lt;Receiver&lt;Job&gt;&gt;&gt; is a mouthful. Draw it outside in. The lock must be held only for the recv(), not while doing the job; let job = rx.lock().unwrap().recv() does that because the guard is dropped at the end of the statement. Full solution: teacher/s5/lab5-solution-lib.rs.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">Homework 5 · due Session 6</p>
+  <h2>Swarm Sim</h2>
+  <p>A JSON config describes a dirty floor and a few cleaning bots. Read it, check it, run every bot on its own thread over one shared floor, and write the report back out as JSON.</p>
+  <ul>
+    <li>Derive serde's traits and load the config with <code>serde_json</code>, turning its errors into your <code>SimError</code>.</li>
+    <li>Check the floor and the bots in the documented order, with a clear message for each problem.</li>
+    <li>Run the bots with <code>thread::spawn</code> and an <code>Arc&lt;Mutex&lt;..&gt;&gt;</code> floor. Bumping into a wall is allowed.</li>
+    <li>Write at least three tests of your own.</li>
+  </ul>
+  <p>8 visible tests, your tests, hidden edge cases, clippy and fmt: 10 points.</p>
+  <aside class="speaker">The hidden tests check the order of the checks, empty rows, case-sensitive names, tiles never going below zero, eight bots crowding one floor giving the same totals twenty runs in a row, and every error message. The report deliberately leaves out who cleaned what, because with threads that changes from run to run. Ask students why.</aside>
+</section>
+
+<section class="slide" data-robbie="Checkpoint 2. Like a save point in a game. Save often. I wish I had.">
+  <p class="eyebrow">Checkpoint 2 · take home</p>
+  <h2>Review of Sessions 4 and 5</h2>
+  <p>Fifteen questions on traits, generics, iterators, lifetimes, smart pointers and threads, one at a time, with an explanation after each. Due before Session 6.</p>
+  <ul>
+    <li>Each explanation names the session to reread if you miss it.</li>
+    <li>Checkpoints count for 20% of the course grade, split between the two.</li>
+  </ul>
+  <div class="cta-row"><a class="btn" href="checkpoint.html">Open Checkpoint 2</a></div>
+  <aside class="speaker">Same format as Checkpoint 1. Scores are saved in the student's browser; ask for a screenshot of the final score, or run it in class on Session 6 morning. The answer key is in the teacher's notebook.</aside>
+</section>
+
+<section class="slide" data-robbie="Recap, then Quiz 5. Next time is the last session. I&#x27;ll be mostly rust and one shiny chest plate. Come anyway." data-emote="happy">
+  <p class="eyebrow">Recap</p>
+  <h2>What you can do now</h2>
+  <ul class="big-list">
+    <li>Pick a smart pointer: <code>Box</code>, <code>Rc</code>, <code>RefCell</code> or <code>Arc</code>.</li>
+    <li>Start threads, hand them data with <code>move</code>, and join them.</li>
+    <li>Pass messages with channels, or share state with <code>Arc&lt;Mutex&lt;T&gt;&gt;</code>.</li>
+    <li>Read an E0277 about <code>Send</code> and know what to swap in.</li>
+    <li>Write async code with tokio, unit and integration tests, and JSON with serde.</li>
+  </ul>
+  <div class="cta-row"><a class="btn primary" href="quiz.html">Take Quiz 5</a><a class="btn" href="checkpoint.html">Checkpoint 2</a><a class="btn" href="handbook.html">Open the handbook</a></div>
+  <aside class="speaker">Close: next session is the last. Macros, unsafe, talking to C, WebAssembly and shipping a crate, then the final project. Robbie will be 95% rust, with only a cracked chrome chest plate left. He's being brave about it. Then Quiz 5.</aside>
+</section>
+
+</main>
+
+<div class="wrap"><nav class="deck-nav" aria-label="Slide controls">
+  <button class="btn prev" type="button">← Back</button>
+  <button class="btn primary next" type="button">Next →</button>
+  <span class="prog" aria-hidden="true"><i></i></span>
+  <span class="count">1 / 1</span>
+  <button class="btn ghost notes" type="button">Speaker notes</button>
+</nav></div>
+
+<script>
+window.ROBBIE_PAGE = {
+  "greeting": "Session 5 slides. Some examples fail on purpose and one panics on purpose. Press Run and read what happens.",
+  "tips": [
+    "How many owners? How many threads? Does anyone change it? Those three answers pick your pointer.",
+    "If a loop over a channel never ends, a sender is still alive. Drop it.",
+    "Thread output comes in a different order every run. Never test the order."
+  ],
+  "eli5": [
+    "A thread is a second robot working at the same time.",
+    "A Mutex is a key. Only the bot holding it may touch the thing."
+  ],
+  "hype": [
+    "Fearless concurrency is Rust's party trick. Today you learn it.",
+    "72% rust and still teaching. Respect the hustle."
+  ]
+};
+</script>
+<script src="../../assets/js/course.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="../../assets/js/site.js"></script>
+<script src="../../assets/js/robbie.js"></script>
+<script src="../../assets/js/slides.js"></script>
+<script type="module" src="../../assets/js/robbie3d.js"></script>
+</body>
+</html>

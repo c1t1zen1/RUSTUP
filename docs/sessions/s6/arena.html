@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Robbie Arena</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=IBM+Plex+Sans:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../assets/css/site.css">
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/" } }</script>
+</head>
+<body data-base="../.." data-page="s6-arena" data-rust="5">
+<header class="topbar" data-crumbs='[{"t": "Course map", "href": "../../index.html"}, {"t": "Session 6", "href": "index.html"}, {"t": "Robbie Arena"}]'></header>
+<main class="wrap tool">
+  <div class="doc-head">
+    <p class="eyebrow">Robbie Arena · Session 6 · runs in your browser</p>
+    <h1>Robbie Arena</h1>
+    <div class="meta"><span>The final project's rules, live</span><span>Step through any mission</span><span>Check your Rust's output against it</span></div>
+  </div>
+  <p class="muted" style="max-width:68ch">Write a mission, press Play, and watch every bot follow its script tile by tile. The Arena follows the same rules as the <a href="final.html">final project</a> README, so when your <code>robbie-mc</code> disagrees with it, one of you has a bug. (It's usually not the Arena. It was tested against the reference solution on 800 random missions.)</p>
+
+  <div class="arena">
+    <section class="panel" aria-label="Mission">
+      <div class="row" style="justify-content:space-between">
+        <h2>Mission</h2>
+        <select id="preset" aria-label="Load an example mission"></select>
+      </div>
+      <div class="tabs" role="tablist">
+        <button type="button" role="tab" data-tab="json" aria-selected="true">Mission JSON</button>
+        <button type="button" role="tab" data-tab="plain" aria-selected="false">Map + script</button>
+      </div>
+      <div id="pane-json">
+        <label class="field">missions/your-mission.json<textarea id="json" rows="16" spellcheck="false" autocomplete="off"></textarea></label>
+      </div>
+      <div id="pane-plain" hidden>
+        <p class="muted" style="margin:0;font-size:var(--step--1)">Like <code>cargo run -- map.txt script.txt</code>: Robbie starts on the first tile that isn't a wall, facing East, with a battery of 50.</p>
+        <label class="field">map.txt<textarea id="map" rows="6" spellcheck="false" autocomplete="off"></textarea></label>
+        <label class="field">script.txt<textarea id="script" rows="9" spellcheck="false" autocomplete="off"></textarea></label>
+      </div>
+      <pre id="err" class="errbox" hidden></pre>
+      <details>
+        <summary>The rules in one screen</summary>
+        <ul style="margin:0;padding-left:1.2em;font-size:var(--step--1)">
+          <li>Tiles: <code>.</code> floor, <code>#</code> wall, <code>P</code> a spare part. (0, 0) is top left; y grows going South.</li>
+          <li>Commands, one per line, any case: <code>forward</code>, <code>forward N</code>, <code>left</code>, <code>right</code>, <code>pick</code>, <code>wait</code>. Lines starting with <code>#</code> are notes.</li>
+          <li>Each tile forward costs 1 battery. Turns, picks and waits are free.</li>
+          <li>A wall or the edge ahead is a bump: it costs the battery, the bot stays put, and the rest of that forward is dropped.</li>
+          <li>Trying to move with battery 0 makes a bot flat. A flat bot ignores everything after.</li>
+        </ul>
+      </details>
+    </section>
+
+    <section class="panel" aria-label="Arena">
+      <div class="row">
+        <button class="btn primary" id="play" type="button">Play</button>
+        <button class="btn" id="step" type="button">Step</button>
+        <button class="btn" id="run" type="button">Run to the end</button>
+        <button class="btn ghost" id="reset" type="button">Reset</button>
+      </div>
+      <div class="row">
+        <label class="field" style="flex-direction:row;align-items:center">Order
+          <select id="mode"><option value="mission">One bot at a time (run_mission)</option><option value="fleet">Fleet, taking turns (run_fleet)</option></select></label>
+        <label class="field" style="flex-direction:row;align-items:center">Speed
+          <input id="speed" type="range" min="60" max="700" step="20" value="320" style="direction:rtl;width:110px" aria-label="Speed: further right is faster"></label>
+      </div>
+      <div id="board" class="board" role="img"></div>
+      <div class="legend"><span style="--sw:var(--bg-2)">floor</span><span style="--sw:var(--line)">wall</span><span style="--sw:var(--bronze)">spare part</span><span style="--sw:var(--ink-3)">flat bot</span></div>
+      <p id="now" class="now" aria-live="polite"></p>
+      <ul id="bots" class="botlist"></ul>
+      <ol id="log" class="log" aria-label="Last few moves, newest first"></ol>
+    </section>
+  </div>
+
+  <div class="arena" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr)">
+    <section class="panel reportbox" id="reportbox" aria-label="Report">
+      <div class="row" style="justify-content:space-between">
+        <h2>Mission report</h2>
+        <div class="row"><select id="fmt" aria-label="Report format"><option value="text">Text, like cargo run</option><option value="json">JSON, like --json</option></select><button class="btn" id="copy" type="button">Copy</button></div>
+      </div>
+      <pre id="report"></pre>
+    </section>
+    <section class="panel" aria-label="Check your output">
+      <h2>Does yours match?</h2>
+      <p class="muted" style="margin:0;font-size:var(--step--1)">Save the mission above to a file, run your project on it with <code>cargo run -- mission.json</code> (or <code>--json</code>), and paste what it printed. Trailing spaces don't count.</p>
+      <label class="field">Your output<textarea id="mine" rows="7" spellcheck="false" autocomplete="off" placeholder="Mission report&#10;  Robbie   at (7, 2) facing E ..."></textarea></label>
+      <div class="row"><button class="btn primary" id="check" type="button">Compare</button></div>
+      <pre id="cmpout" class="verdict" aria-live="polite"></pre>
+    </section>
+  </div>
+
+  <h2>Stretch goal: put your Rust in here</h2>
+  <p style="max-width:68ch">The Arena is JavaScript. The stretch goal is to replace it with <em>your</em> library. Build it for the web with <code>wasm-pack</code> and expose one function, and this page could call your code instead of its own:</p>
+<pre data-lang="rust" data-title="src/lib.rs">// in robbie-mc/src/lib.rs, behind a "wasm" feature
+#[wasm_bindgen]
+pub fn run_mission_json(text: &amp;str) -&gt; String {
+    match Mission::from_json(text).and_then(|m| run_mission(&amp;m)) {
+        Ok(report) =&gt; report.to_json(),
+        Err(e) =&gt; format!("error: {e}"),
+    }
+}</pre><pre data-lang="sh" data-title="terminal">rustup target add wasm32-unknown-unknown
+cargo install wasm-pack
+wasm-pack build --target web --features wasm</pre>
+  <p class="muted" style="max-width:68ch">Show your teacher your build running the example missions and giving the same reports as the Arena. That's up to +5. The final project page lists the other stretch goals.</p>
+
+  <div class="cta-row" style="margin-block:32px 48px">
+    <a class="btn primary" href="final.html">The final project brief</a>
+    <a class="btn" href="index.html">Back to Session 6</a>
+  </div>
+</main>
+<script>
+window.ROBBIE_PAGE = {
+  "greeting": "Welcome to the Arena. I'm the one in rust-orange. Give me a script and watch me bump into walls on purpose.",
+  "tips": [
+    "Step goes one tile at a time. Use it to find exactly where your Rust and the Arena part ways.",
+    "Switch the order to Fleet: the bots take turns, but everyone ends in the same place. That's the rule your run_fleet must keep."
+  ],
+  "eli5": [
+    "It's a board game where the robots read their moves off a card, and the board checks every move for you."
+  ],
+  "hype": [
+    "If your output matches the Arena on every example, the hidden tests are going to be a lot less scary."
+  ]
+};
+</script>
+<script src="../../assets/js/course.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="../../assets/js/site.js"></script>
+<script src="../../assets/js/robbie.js"></script>
+<script src="../../assets/js/arena-engine.js"></script>
+<script src="../../assets/js/arena.js"></script>
+<script type="module" src="../../assets/js/robbie3d.js"></script>
+</body>
+</html>

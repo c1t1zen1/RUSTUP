@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Review Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=IBM+Plex+Sans:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="assets/css/site.css">
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/" } }</script>
+</head>
+<body data-base="." data-page="review-lab" data-rust="5">
+<header class="topbar" data-crumbs='[{"t": "Course map", "href": "index.html"}, {"t": "Review Lab"}]'></header>
+<main class="wrap tool">
+  <div class="doc-head">
+    <p class="eyebrow">Review Lab · for students and teachers</p>
+    <h1>Review Lab</h1>
+    <div class="meta"><span>Read a grader report</span><span>Score a code review</span><span>Work out your course grade</span></div>
+  </div>
+  <p class="muted" style="max-width:68ch">Everything here runs in your browser and nothing is sent anywhere. Your entries are remembered in this browser only, for next time.</p>
+
+  <h2 id="report">1. Read a grader report</h2>
+  <p style="max-width:68ch">After <code>robbie-grader</code> runs, it writes <code>grade.json</code> into the project folder. Open it here to see every line of the scorecard, and every clippy warning and review flag explained in plain English.</p>
+  <div class="lab">
+    <section class="panel">
+      <label id="drop" class="drop">Drop <b>grade.json</b> here, or <span style="color:var(--led);text-decoration:underline">pick the file</span>
+        <input id="file" type="file" accept=".json,application/json" style="position:absolute;width:1px;height:1px;opacity:0"></label>
+      <label class="field">Or paste it<textarea id="json" rows="6" spellcheck="false" placeholder='{ "robbie_grader": 1, ... }'></textarea></label>
+      <div class="row"><button class="btn primary" id="paste" type="button">Read it</button><button class="btn ghost" id="sample" type="button">Try a sample</button></div>
+    </section>
+    <section class="panel" id="gradeout" aria-live="polite"><p class="muted" style="margin:0">Nothing loaded yet. The sample is a real report from a project with three clippy warnings and one unwrap.</p></section>
+  </div>
+
+  <h2 id="review">2. Score the code review <span class="muted" style="font:500 .9rem var(--f-mono)">teacher</span></h2>
+  <p style="max-width:68ch">The code review is 15 of the final project's 100 points. Read the student's code with the flags above beside it, pick a score for each part, and the page writes the grader command and the feedback for you.</p>
+  <div class="lab">
+    <section class="panel">
+      <div class="row" style="justify-content:space-between"><h3>Rubric</h3><span id="revtotal" style="font:400 var(--step-2) var(--f-display)">0 / 15</span></div>
+      <div id="crit"></div>
+    </section>
+    <section class="panel">
+      <h3>Grader command</h3>
+      <label class="field">Project folder<input type="text" id="path" placeholder="path/to/student/robbie-mc" spellcheck="false"></label>
+      <div class="row">
+        <label class="field" style="width:8rem">Stretch, 0 to 5<input type="number" id="stretch" min="0" max="5" step="1" value="0"></label>
+        <label style="display:flex;gap:8px;align-items:center;font-size:var(--step--1)"><input type="checkbox" id="examday" checked> Include the exam-day tests</label>
+      </div>
+      <pre id="cmd" class="cmd"></pre>
+      <div class="row"><button class="btn" id="copycmd" type="button">Copy command</button></div>
+      <p id="newtotal" class="muted" style="margin:0"></p>
+      <h3>Feedback for the student</h3>
+      <pre id="feedback" class="cmd" style="white-space:pre-wrap"></pre>
+      <div class="row"><button class="btn" id="copyfb" type="button">Copy feedback</button></div>
+      <div class="callout mnemonic" style="margin:0"><span class="tag">A good comment</span><p>Says <b>what, where and why</b>: "world.rs:40 unwraps the first row, which panics on an empty map. Return McError::EmptyMap." Not "bad error handling".</p></div>
+    </section>
+  </div>
+
+  <h2 id="grade">3. Your course grade</h2>
+  <p style="max-width:68ch">Fill in what you have. Quiz and checkpoint scores can come straight from this browser, if you took them here. 90% or more, with every part in, earns the RUSTUP Rustacean certificate.</p>
+  <div class="row" style="margin-bottom:12px"><button class="btn" id="fillquiz" type="button">Fill in my quiz scores</button><span id="fillmsg" class="muted" style="font-size:var(--step--1)" aria-live="polite"></span></div>
+  <div class="lab">
+    <div id="calc" style="display:grid;gap:12px;min-width:0"></div>
+    <section class="panel">
+      <div class="row" style="justify-content:space-between;align-items:baseline"><h3>Course grade</h3><span id="coursegrade" style="font:400 var(--step-4)/1 var(--f-display)">–</span></div>
+      <p id="gradenote" class="muted" style="margin:0" aria-live="polite"></p>
+      <div class="tablewrap" style="margin:0"><table><thead><tr><th>Part</th><th>Weight</th><th>Score</th></tr></thead><tbody id="calcrows"></tbody></table></div>
+      <p class="muted" style="margin:0;font-size:var(--step--1)">Each part is the average of its items. The final project counts out of 100, and a stretch goal can lift it to 105. The course grade stops at 100.</p>
+      <label class="field">Name for the certificate<input type="text" id="certname" autocomplete="name"></label>
+      <div id="cert" class="cert" hidden>
+        <p class="eyebrow" style="margin:0">RUSTUP · six sessions · three weeks</p>
+        <h3>Certified Rustacean</h3>
+        <p style="margin:6px 0 2px;font-size:var(--step-1)"><b id="certwho"></b></p>
+        <p class="muted" style="margin:0">finished the RUSTUP Rust master class with</p>
+        <p class="big" id="certscore" style="margin:6px 0"></p>
+        <p class="muted" style="margin:0;font-size:var(--step--1)">Signed, Robbie v11. 95% rust, 100% proud.</p>
+      </div>
+    </section>
+  </div>
+
+  <div class="cta-row" style="margin-block:32px 48px">
+    <a class="btn primary" href="sessions/s6/final.html">The final project brief</a>
+    <a class="btn" href="sessions/s6/arena.html">Robbie Arena</a>
+    <a class="btn ghost" href="index.html">Back to the course map</a>
+  </div>
+</main>
+<script>
+window.ROBBIE_PAGE = {
+  "greeting": "The Review Lab. Bring me a grade.json and I'll tell you what every line means. Gently. I've had a lot of things pointed out about me lately.",
+  "tips": [
+    "Fix flags from the top: a build error first, then clippy, then the review flags.",
+    "Clippy and format points are the cheapest on the rubric. cargo fmt takes one second."
+  ],
+  "eli5": [
+    "The grader is a strict robot inspector. This page translates its checklist into human."
+  ],
+  "hype": [
+    "Every warning you fix is one less thing a real reviewer will ever have to tell you."
+  ]
+};
+</script>
+<script src="./assets/js/course.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="./assets/js/site.js"></script>
+<script src="assets/js/robbie.js"></script>
+<script src="assets/js/review-lab.js"></script>
+<script type="module" src="./assets/js/robbie3d.js"></script>
+</body>
+</html>

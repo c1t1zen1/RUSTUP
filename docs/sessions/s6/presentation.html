@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ship It Slides</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=IBM+Plex+Sans:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../assets/css/site.css">
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/" } }</script>
+</head>
+<body data-base="../.." data-page="s6-presentation" data-rust="5">
+<header class="topbar" data-crumbs='[{"t": "Course map", "href": "../../index.html"}, {"t": "Session 6", "href": "index.html"}, {"t": "Presentation"}]'></header>
+
+<main class="wrap deck">
+
+<section class="slide" data-robbie="Last session. 95% rust, one cracked chest plate. Let&#x27;s ship something before I do anything dramatic, like fall over." data-emote="wave">
+  <p class="eyebrow">Session 6 · Week 3 · Thursday</p>
+  <h2 style="font-size:clamp(2.6rem,8vw,5rem)">Ship It</h2>
+  <p class="big-line">Macros, unsafe, talking to C, measuring speed, WebAssembly and publishing. Then the final project.</p>
+  <p class="muted">Press <kbd>→</kbd> to go on, <kbd>N</kbd> for speaker notes.</p>
+  <aside class="speaker">Robbie is 95% rust. His armor has rusted off and the chrome chest plate is cracked; it's the last shiny thing he has. Running joke: he's shipping before he crumbles. Today is the edges of Rust, the places where you step outside the compiler's guarantees on purpose, and how to package your work for other people. Second half is the final project kickoff.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">Today's flight plan</p>
+  <h2>Two and a half hours</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Time</th><th>Block</th></tr></thead>
+    <tbody>
+      <tr><td>0:00</td><td>Homework 5 review</td></tr>
+      <tr><td>0:10</td><td>Macros with <code>macro_rules!</code></td></tr>
+      <tr><td>0:25</td><td><code>unsafe</code>, and wrapping it safely</td></tr>
+      <tr><td>0:40</td><td>FFI: calling C, and being called</td></tr>
+      <tr><td>0:55</td><td>Break (Robbie checks his chest plate)</td></tr>
+      <tr><td>1:05</td><td>Speed: release builds, benchmarks, overflow</td></tr>
+      <tr><td>1:15</td><td>WebAssembly and publishing a crate</td></tr>
+      <tr><td>1:25</td><td>Lab: the Final Build Lab</td></tr>
+      <tr><td>1:55</td><td>Final project kickoff, peer review, Quiz 6</td></tr>
+    </tbody>
+  </table></div>
+  <aside class="speaker">Homework 5 review: show one sim that locked the floor for a whole walk (the bots queue up and it's effectively single-threaded) and one that locked per tile. Ask why the report never says who cleaned a tile. Ten minutes, then macros.</aside>
+</section>
+
+<section class="slide" data-robbie="Guard rails off. Only in small, labelled places. Like my oil can." data-emote="think">
+  <p class="eyebrow">The big idea</p>
+  <h2>Leaving the guard rails, on purpose</h2>
+  <div class="two">
+    <div>
+      <p>For five sessions the compiler has checked everything. Today you meet the places where it can't: code that writes code, raw memory, other languages, and the outside world.</p>
+      <p>Good Rust doesn't avoid these. It keeps them <b>small</b>, puts a <b>safe wrapper</b> around them, and writes down <b>why</b> they're fine.</p>
+    </div>
+    <div class="callout mnemonic"><span class="tag">Remember this</span><p><b>Unsafe on the inside, safe on the outside.</b> The standard library is full of unsafe code you've used every day: <code>Vec</code>, <code>String</code>, <code>split_at_mut</code>. You never had to write <code>unsafe</code> to call them.</p></div>
+  </div>
+  <aside class="speaker">Coming from C or C++: everything there is unsafe Rust, all the time. Coming from Python: the interpreter is a big unsafe C program with a safe wrapper; that's the same pattern. The goal today is judgment: when is it justified, and how small can you make it.</aside>
+</section>
+
+<section class="slide" data-robbie="println! has been a macro since Session 1. Surprise. It was writing code for you the whole time." data-emote="happy">
+  <p class="eyebrow">Macros</p>
+  <h2>Code that writes code</h2>
+  <pre data-run>// A macro matches the shape of what you pass it, then writes code.
+macro_rules! squeak {
+    () =&gt; {
+        println!("squeak")
+    };
+    ($times:expr) =&gt; {
+        for _ in 0..$times {
+            println!("squeak")
+        }
+    };
+}
+
+fn main() {
+    squeak!(); // matches the first arm
+    squeak!(2); // matches the second, with $times = 2
+}</pre>
+  <ul>
+    <li><code>macro_rules!</code> makes a <b>declarative macro</b>: a list of arms, like <code>match</code>, but on the shape of the code you pass in.</li>
+    <li><code>$times:expr</code> means "an expression, call it <code>$times</code>". Others: <code>ident</code>, <code>ty</code>, <code>tt</code>, <code>literal</code>.</li>
+    <li>The <code>!</code> tells the reader it's a macro: <code>println!</code>, <code>vec!</code> and <code>assert_eq!</code> are all macros.</li>
+  </ul>
+  <aside class="speaker">Why a macro and not a function? A function can't take a variable number of arguments, can't take a format string checked at compile time, and can't write a for loop around your code. Rule of thumb: try a function first, then a generic function, then a macro.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">Repetition</p>
+  <h2>Any number of arguments</h2>
+  <pre data-run>// $( ... ),* matches a comma-separated list, and repeats the code for each.
+macro_rules! parts_list {
+    ($($part:expr),* $(,)?) =&gt; {
+        vec![$(String::from($part)),*]
+    };
+}
+
+fn main() {
+    let spares = parts_list!["bolt", "spring", "left elbow"];
+    println!("{spares:?}");
+    let none: Vec&lt;String&gt; = parts_list![];
+    println!("{} spares in the empty box", none.len());
+}</pre>
+  <p><code>$( ... ),*</code> matches zero or more items separated by commas. Inside the arm, <code>$( ... ),*</code> repeats the code once per item. <code>+</code> means one or more, <code>?</code> means zero or one.</p>
+  <pre data-run>// A macro can call itself, peeling one item off each time.
+macro_rules! loudest {
+    ($x:expr) =&gt; { $x };
+    ($x:expr, $($rest:expr),+) =&gt; {
+        std::cmp::max($x, loudest!($($rest),+))
+    };
+}
+
+fn main() {
+    println!("loudest squeak: {}", loudest!(42, 87, 63, 12));
+}</pre>
+  <aside class="speaker">This is exactly how vec! works. The recursive one peels off the first item and calls itself on the rest; it's in Lab 6 step 1. The $(,)? at the end of the first pattern allows a trailing comma, a nice touch for users.</aside>
+</section>
+
+<section class="slide" data-robbie="If no arm fits, no code gets written. Like me trying to fit in last year&#x27;s chassis." data-emote="look">
+  <p class="eyebrow">When a macro doesn't match</p>
+  <h2>No arm, no code</h2>
+  <p class="muted">Fails on purpose (no arm matches). Press Run and read the error.</p>
+  <pre data-run>macro_rules! squeak {
+    () =&gt; {
+        println!("squeak")
+    };
+}
+
+fn main() {
+    squeak!(3); // no arm takes an argument
+}</pre>
+  <p>The error says "no rules expected this token". Read it like a failed <code>match</code>: none of the arms has that shape. Add an arm, or change the call.</p>
+  <div class="callout mnemonic"><span class="tag">Remember this</span><p><b>A macro is a match on code.</b> Arms are tried top to bottom, and the first one that fits wins.</p></div>
+  <aside class="speaker">Macro errors are the least friendly in Rust. cargo expand (a cargo plugin) shows the code a macro wrote; mention it, don't install it in class. Procedural macros, the derive kind like #[derive(Serialize)], are a whole separate crate type: out of scope today, but students have used them since Session 3.</aside>
+</section>
+
+<section class="slide" data-robbie="unsafe doesn&#x27;t mean dangerous. It means: trust me. So you&#x27;d better be trustworthy." data-emote="think">
+  <p class="eyebrow">unsafe</p>
+  <h2>Five things the compiler can't check</h2>
+  <p class="muted">Fails on purpose (E0133). Press Run and read the error.</p>
+  <pre data-run>fn main() {
+    let battery = 87;
+    let p = &amp;battery as *const i32; // making a raw pointer is safe
+    println!("{}", *p); // reading through it is not
+}</pre>
+  <p>Making a raw pointer is fine. Following it isn't, because the compiler can't prove it points at something alive (E0133). An <code>unsafe</code> block unlocks five abilities and nothing more:</p>
+  <ul>
+    <li>Follow a raw pointer (<code>*const T</code>, <code>*mut T</code>).</li>
+    <li>Call an <code>unsafe fn</code>, including C functions.</li>
+    <li>Use a <code>static mut</code>, implement an <code>unsafe trait</code>, read a <code>union</code> field.</li>
+  </ul>
+  <aside class="speaker">The borrow checker still runs inside unsafe. Unsafe doesn't turn checks off; it lets you do five extra things, and you promise they're fine. If the promise is wrong, the result is undefined behaviour: the program can do anything, including look fine until Friday.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">Keeping a promise</p>
+  <h2>Every unsafe block gets a SAFETY comment</h2>
+  <pre data-run>fn main() {
+    let mut battery = 87;
+    let p = &amp;mut battery as *mut i32;
+    // SAFETY: p came from a live, unique &amp;mut just above, and nothing else
+    // touches battery while we use it.
+    unsafe {
+        *p -= 10;
+        println!("battery through a raw pointer: {}", *p);
+    }
+    println!("battery: {battery}");
+}</pre>
+  <div class="callout mnemonic"><span class="tag">Remember this</span><p><b>If you can't write the SAFETY comment, you can't write the block.</b> Say which rule you're promising to follow, and why it holds right here.</p></div>
+  <aside class="speaker">clippy has a lint, undocumented_unsafe_blocks, that enforces SAFETY comments; many real projects turn it on. The code review in the final project looks for them too. In this example the raw pointer is pointless (a &amp;mut would do), which is the point: most of the time you don't need unsafe at all.</aside>
+</section>
+
+<section class="slide" data-robbie="My left arm and my right arm can both move at once. Rust needs proof. split_at_mut is the proof." data-emote="look">
+  <p class="eyebrow">A real reason</p>
+  <h2>Two halves, both changeable</h2>
+  <p class="muted">Fails on purpose (E0499). Press Run and read the error.</p>
+  <pre data-run>fn main() {
+    let mut joints = [5, 9, 2, 7];
+    let left = &amp;mut joints[..2];
+    let right = &amp;mut joints[2..]; // the halves don't overlap, but Rust can't tell
+    left[0] = 0;
+    right[0] = 0;
+    println!("{joints:?}");
+}</pre>
+  <p>The two halves can't overlap, but the borrow checker only sees "two <code>&amp;mut</code> into <code>joints</code>" (E0499). The standard library has a safe function for exactly this:</p>
+  <pre data-run>fn main() {
+    let mut joints = [5, 9, 2, 7];
+    let (left, right) = joints.split_at_mut(2); // std did the unsafe part for you
+    left[0] = 0;
+    right[0] = 0;
+    println!("{joints:?}");
+}</pre>
+  <aside class="speaker">Always look for the safe std function first: split_at_mut, chunks_mut, swap, mem::take. The next slide shows how split_at_mut is built, which is what Lab 6 step 2 asks for. That's the one time students write it themselves.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">Building the safe wrapper</p>
+  <h2>Unsafe inside, safe outside</h2>
+  <pre data-run>/// Two halves you can change at once. Safe to call, unsafe inside.
+fn split_halves(items: &amp;mut [u32]) -&gt; (&amp;mut [u32], &amp;mut [u32]) {
+    let len = items.len();
+    let mid = len / 2;
+    let ptr = items.as_mut_ptr();
+    // SAFETY: ptr is valid for len items. 0..mid and mid..len never overlap,
+    // and both slices live no longer than the borrow of items.
+    unsafe {
+        (
+            std::slice::from_raw_parts_mut(ptr, mid),
+            std::slice::from_raw_parts_mut(ptr.add(mid), len - mid),
+        )
+    }
+}
+
+fn main() {
+    let mut joints = [5, 9, 2, 7, 4];
+    let (left, right) = split_halves(&amp;mut joints);
+    left[0] = 0;
+    right[0] = 0;
+    println!("{joints:?}");
+}</pre>
+  <ul>
+    <li><code>as_mut_ptr</code> gives a raw pointer to the first item. <code>ptr.add(mid)</code> moves it along.</li>
+    <li><code>from_raw_parts_mut</code> builds a slice from a pointer and a length. That's the unsafe call.</li>
+    <li>The signature ties both halves to the borrow of <code>items</code>, so callers stay fully checked.</li>
+  </ul>
+  <aside class="speaker">Walk through the SAFETY comment line by line: valid pointer, no overlap, lifetimes bounded by the input. If any of those were false, say mid could be bigger than len, it would be undefined behaviour. That's why mid comes from len / 2 and not from the caller. Lab 6 step 2.</aside>
+</section>
+
+<section class="slide" data-robbie="C is my grandfather&#x27;s language. Very fast. Never checks anything. Writes letters with no full stops." data-emote="happy">
+  <p class="eyebrow">FFI</p>
+  <h2>Calling C</h2>
+  <pre data-run>use std::ffi::{CStr, c_char};
+
+// Rust 2024: an extern block is unsafe, because Rust can't check what's in C.
+unsafe extern "C" {
+    safe fn abs(x: i32) -&gt; i32; // `safe`: you promise it's fine with any i32... almost
+    fn strlen(s: *const c_char) -&gt; usize; // a raw pointer, so calling it stays unsafe
+}
+
+fn c_strlen(s: &amp;CStr) -&gt; usize {
+    // SAFETY: a &amp;CStr always ends in a 0 byte, which is what strlen needs.
+    unsafe { strlen(s.as_ptr()) }
+}
+
+fn main() {
+    println!("C says |-12| = {}", abs(-12));
+    println!("C says \"robbie\" has {} bytes", c_strlen(c"robbie"));
+}</pre>
+  <ul>
+    <li>An <code>unsafe extern "C"</code> block declares functions that live in C. Rust can't see inside them.</li>
+    <li>Mark one <code>safe fn</code> when any arguments are fine. Otherwise each call needs <code>unsafe</code>.</li>
+    <li><code>c"robbie"</code> is a C string: bytes ending in a 0, the way C expects.</li>
+  </ul>
+  <aside class="speaker">FFI is Foreign Function Interface. abs and strlen come from the C standard library, which every Rust program on Linux and macOS already links. Honesty note: C's abs(INT_MIN) is undefined behaviour, so "safe fn abs" is a small lie. Lab 6 step 3 fixes it with a wrapper that returns None for i32::MIN. Ask the room to spot the lie before you tell them.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">FFI, the strict version</p>
+  <h2>Not marked safe? Then the call is unsafe</h2>
+  <p class="muted">Fails on purpose (E0133). Press Run and read the error.</p>
+  <pre data-run>unsafe extern "C" {
+    fn abs(x: i32) -&gt; i32;
+}
+
+fn main() {
+    println!("{}", abs(-12)); // not marked safe, so the call needs unsafe
+}</pre>
+  <p>Since Rust 2024 the <code>extern</code> block itself must say <code>unsafe</code>: you're promising the declarations match the real C functions. Each function is then <code>safe fn</code> or, by default, unsafe to call.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Rust</th><th>C</th></tr></thead>
+    <tbody>
+      <tr><td><code>i32</code>, <code>u8</code>, <code>f64</code></td><td><code>int</code>, <code>unsigned char</code>, <code>double</code></td></tr>
+      <tr><td><code>&amp;CStr</code>, <code>CString</code></td><td><code>const char *</code> ending in 0</td></tr>
+      <tr><td><code>*const T</code>, <code>*mut T</code></td><td><code>const T *</code>, <code>T *</code></td></tr>
+      <tr><td><code>#[repr(C)] struct</code></td><td><code>struct</code> with the same layout</td></tr>
+    </tbody>
+  </table></div>
+  <aside class="speaker">For your own C code, the cc crate compiles a .c file in build.rs and links it. bindgen writes the extern block for you from a C header. Mention both; neither is needed for the final.</aside>
+</section>
+
+<section class="slide" data-robbie="This is how Rust sneaks into other programs. Politely. With a no_mangle badge." data-emote="look">
+  <p class="eyebrow">FFI the other way</p>
+  <h2>Rust that other languages can call</h2>
+  <pre data-run>// Going the other way: a Rust function that C (or Python, or Swift) can call.
+#[unsafe(no_mangle)]
+pub extern "C" fn robbie_battery_after(start: u32, steps: u32) -&gt; u32 {
+    start.saturating_sub(steps)
+}
+
+fn main() {
+    // You can still call it from Rust like any function.
+    println!("battery after 30 steps: {}", robbie_battery_after(20, 30));
+}</pre>
+  <pre data-run>use std::ffi::{CStr, CString};
+
+fn main() {
+    // Rust strings know their length. C strings end at a 0 byte instead.
+    let name = CString::new("Robbie v11").unwrap();
+    println!("{} bytes, plus the 0 at the end", name.as_bytes().len());
+
+    let literal: &amp;CStr = c"squeak"; // a C string literal, checked at compile time
+    println!("{literal:?} back in Rust: {}", literal.to_str().unwrap());
+
+    // A 0 byte in the middle can't be a C string.
+    println!("{:?}", CString::new("rob\0bie").is_err());
+}</pre>
+  <aside class="speaker">#[unsafe(no_mangle)] keeps the name exactly as written so C can find it; in 2024 it's an unsafe attribute because two functions with the same unmangled name would clash. With crate-type = ["cdylib"] in Cargo.toml this builds a .so/.dylib/.dll that Python (ctypes), Swift or C can load. This is how Rust ends up inside Firefox, Android and the Linux kernel.</aside>
+</section>
+
+<section class="slide" data-robbie="Never benchmark in debug mode. That&#x27;s like timing me while I&#x27;m still oiling my knees.">
+  <p class="eyebrow">Speed</p>
+  <h2>Measure in release mode, every time</h2>
+  <pre data-lang="sh" data-title="terminal">cargo run                         # debug: fast to compile, slow to run, overflow checks on
+cargo run --release               # optimized: often 10 to 50 times faster
+cargo run --release --example bench</pre>
+  <pre data-run>use std::hint::black_box;
+use std::time::Instant;
+
+fn vowels(text: &amp;str) -&gt; usize {
+    text.bytes()
+        .filter(|b| matches!(b.to_ascii_lowercase(), b'a' | b'e' | b'i' | b'o' | b'u'))
+        .count()
+}
+
+fn main() {
+    let text = "Robbie oils his elbows again. ".repeat(10_000);
+    let mut best = u128::MAX;
+    for _ in 0..10 {
+        let start = Instant::now();
+        black_box(vowels(black_box(&amp;text))); // stop the optimizer skipping the work
+        best = best.min(start.elapsed().as_micros());
+    }
+    println!(
+        "{} vowels, best of 10 runs: {best} microseconds",
+        vowels(&amp;text)
+    );
+}</pre>
+  <p><code>black_box</code> hides a value from the optimizer, so it can't notice nobody uses the answer and delete the work you're timing.</p>
+  <aside class="speaker">The Playground runs debug builds by default (there's a Release option in its menu). For serious benchmarks people use the criterion crate, which runs many samples and gives statistics. Our home-made "best of N" with Instant is good enough to compare two versions of a function, which is Lab 6 step 4.</aside>
+</section>
+
+<section class="slide" data-robbie="My battery once went from 0 to 4,294,967,295. Best day of my life. Then it was a bug." data-emote="happy">
+  <p class="eyebrow">Overflow</p>
+  <h2>Say what should happen at the edge</h2>
+  <p class="muted">Compiles, then panics on purpose. Press Run and read the message.</p>
+  <pre data-run>fn main() {
+    let battery: u8 = 250;
+    let boost: u8 = std::hint::black_box(10);
+    println!("checked:    {:?}", battery.checked_add(boost)); // None
+    println!("saturating: {}", battery.saturating_add(boost)); // 255
+    println!("wrapping:   {}", battery.wrapping_add(boost)); // 4
+    println!("plain +:    {}", battery + boost); // panics in debug builds
+}</pre>
+  <ul>
+    <li>Debug builds panic on overflow. Release builds wrap around silently. Neither is what you meant.</li>
+    <li><code>checked_</code> gives an <code>Option</code>, <code>saturating_</code> stops at the edge, <code>wrapping_</code> goes round on purpose.</li>
+  </ul>
+  <aside class="speaker">The final project's battery uses a check before subtracting, which is the same idea as saturating_sub. Students who write battery - 1 without a check get a panic in debug and u32::MAX battery in release, which is a fun bug to find in a review.</aside>
+</section>
+
+<section class="slide" data-robbie="WebAssembly means I can live in your browser. Rust-free, for once. Well. Rust-powered." data-emote="happy">
+  <p class="eyebrow">WebAssembly</p>
+  <h2>Rust in the browser</h2>
+  <pre data-lang="sh" data-title="terminal">rustup target add wasm32-unknown-unknown
+cargo install wasm-pack
+wasm-pack build --target web     # writes pkg/: a .wasm file and the JavaScript to load it</pre>
+  <pre data-lang="rust" data-title="src/web.rs">use wasm_bindgen::prelude::*;
+
+#[wasm_bindgen]
+pub fn run_mission_json(mission: &amp;str) -&gt; String {
+    match robbie_mc::Mission::from_json(mission).and_then(|m| robbie_mc::run_mission(&amp;m)) {
+        Ok(report) =&gt; report.to_json(),
+        Err(e) =&gt; format!("{{\"error\": \"{e}\"}}"),
+    }
+}</pre>
+  <p>The same library runs in the terminal and in a web page. The course site's <a href="arena.html">Robbie Arena</a> runs missions in the browser, and the final project's stretch goal is to power it with yours.</p>
+  <aside class="speaker">WebAssembly is a small, fast instruction set every browser runs. Rust compiles to it with no garbage collector to ship, so the files are small. Not run in class: wasm-pack needs a download. Show the Arena page instead and say: that, but with your own Rust doing the work.</aside>
+</section>
+
+<section class="slide" data-robbie="Docs that are tests. So my manual can&#x27;t lie about me. Rude, but fair.">
+  <p class="eyebrow">Publishing</p>
+  <h2>From folder to crates.io</h2>
+  <pre data-lang="toml" data-title="Cargo.toml">[package]
+name = "ship_it"
+version = "0.1.0"
+edition = "2024"
+description = "Robbie gets ready to ship"
+license = "MIT"
+repository = "https://github.com/you/ship_it"
+keywords = ["robot", "teaching"]</pre>
+  <pre data-run>/// Robbie's battery after a number of steps. Never goes below zero.
+///
+/// ```
+/// assert_eq!(battery_after(20, 5), 15);
+/// assert_eq!(battery_after(3, 10), 0);
+/// ```
+pub fn battery_after(start: u32, steps: u32) -&gt; u32 {
+    start.saturating_sub(steps)
+}
+
+fn main() {
+    println!("{}", battery_after(20, 5));
+}</pre>
+  <pre data-lang="sh" data-title="terminal">cargo doc --open           # your docs as a website
+cargo test --doc           # every ``` example in your docs is a test
+cargo publish --dry-run    # pack and check, upload nothing</pre>
+  <aside class="speaker">Doc examples are tests: if the docs go out of date, cargo test fails. That's why Rust crate docs are so reliable. Versions follow semver: 0.1.1 for fixes, 0.2.0 for breaking changes before 1.0. Publishing is permanent: you can yank a version but never delete it. Nobody publishes in class.</aside>
+</section>
+
+<section class="slide" data-robbie="A good review says what and why. &#x27;This unwrap crashes on an empty map&#x27; beats &#x27;bad code&#x27;. I&#x27;ve had both." data-emote="look">
+  <p class="eyebrow">Code review</p>
+  <h2>What a reviewer looks for</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Look for</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td><code>unwrap</code> or <code>expect</code> in library code</td><td>A bad input should be an error the caller can handle, not a crash</td></tr>
+      <tr><td><code>.clone()</code> everywhere</td><td>Often a sign the ownership design is fighting the borrow checker</td></tr>
+      <tr><td>One giant function</td><td>Small functions with clear names are easier to test and change</td></tr>
+      <tr><td>Names like <code>data</code>, <code>tmp</code>, <code>x2</code></td><td>The name should say what it is: <code>parts_left</code>, <code>start</code></td></tr>
+      <tr><td><code>unsafe</code> without a SAFETY comment</td><td>The promise has to be written down</td></tr>
+    </tbody>
+  </table></div>
+  <p>The grader flags these lines for you. A person decides if they're fine. That's the 15 code review points in the final.</p>
+  <aside class="speaker">In the second half of the lab, pairs swap laptops, run the grader on each other's final project starter (or homework 5), drop grade.json on the Review Lab page, and go through the flags together. Be kind, be specific, suggest a fix. The Review Lab has the rubric.</aside>
+</section>
+
+<section class="slide" data-robbie="The scariest bug has no error message. That&#x27;s why unsafe needs a comment." data-emote="think">
+  <p class="eyebrow">Error field guide</p>
+  <h2>Six errors you'll meet this week</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Error</th><th>What it means</th><th>Usual fix</th></tr></thead>
+    <tbody>
+      <tr><td>no rules expected this token</td><td>No macro arm has that shape</td><td>Add an arm or change the call</td></tr>
+      <tr><td><code>E0133</code></td><td>Raw pointer or unsafe function used outside <code>unsafe</code></td><td>An <code>unsafe</code> block with a SAFETY comment, or a safe function instead</td></tr>
+      <tr><td><code>E0499</code></td><td>Two <code>&amp;mut</code> borrows of one thing at once</td><td><code>split_at_mut</code>, or one borrow at a time</td></tr>
+      <tr><td>extern blocks must be unsafe</td><td>Rust 2024 wants <code>unsafe extern "C"</code></td><td>Add <code>unsafe</code> before <code>extern</code></td></tr>
+      <tr><td>attempt to add with overflow</td><td>A debug-build panic at a number's edge</td><td><code>checked_</code>, <code>saturating_</code> or <code>wrapping_</code></td></tr>
+      <tr><td>cargo publish: missing description</td><td>crates.io needs metadata</td><td>Fill in <code>[package]</code></td></tr>
+    </tbody>
+  </table></div>
+  <aside class="speaker">Undefined behaviour isn't on this list because it doesn't give an error at all. That's exactly why unsafe needs a written argument. The Miri tool (cargo +nightly miri test) can catch some UB; mention it for curious students.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">Lab · 30 minutes</p>
+  <h2>The Final Build Lab</h2>
+  <div class="two">
+    <div>
+      <p>In <code>labs/lab6-final-build</code>, get Robbie ready to ship: five steps, nine tests, plus every example in your docs.</p>
+      <pre data-lang="sh" data-title="terminal">cargo test step1   # beep! and loudest!: macros
+cargo test step2   # split_halves: unsafe, safely
+cargo test step3   # c_abs and c_strlen: FFI
+cargo test step4   # time_it, then the benchmark
+cargo test step5   # Cargo.toml, ready to publish
+cargo publish --dry-run</pre>
+    </div>
+    <div class="callout robbie"><img src="../../assets/img/robbie-face.jpg" alt=""><div><span class="tag">Robbie's rules</span>
+      <p>Every unsafe block gets a SAFETY comment. Never hand C an i32::MIN. And never publish without --dry-run today. Publishing is forever, like rust.</p>
+    </div></div>
+  </div>
+  <aside class="speaker">Step 3 trap: students write the extern block without unsafe and get the 2024 error; good. Step 5 test reads env! values, so they must rebuild after editing Cargo.toml (cargo does it automatically). Full solution: teacher/s6/lab6-solution-lib.rs.</aside>
+</section>
+
+<section class="slide" data-robbie="My last mission. I&#x27;d like it planned by someone who writes tests." data-emote="happy">
+  <p class="eyebrow">The final project</p>
+  <h2>Robbie Mission Control</h2>
+  <p>A library and command-line app that loads a grid world and a crew of Robbies, runs each bot's script, alone or as a fleet on threads, and prints a mission report.</p>
+  <ul>
+    <li>Everything from the course: types, ownership, enums and errors, traits, threads, serde, tests, docs.</li>
+    <li>The spec is in <code>final/robbie-mc/README.md</code>. 12 visible tests, at least 10 of your own.</li>
+    <li>On exam day you'll get two new features to add in class. A clean design now makes that easy.</li>
+  </ul>
+  <div class="cta-row"><a class="btn primary" href="final.html">Read the final project brief</a><a class="btn" href="arena.html">Try Robbie Arena</a></div>
+  <aside class="speaker">Don't reveal the exam-day features (teacher/final/exam-day.md). If asked, say: "things a mission control would plausibly need next". Encourage students to keep Tile, Command and Bot::run easy to extend: one match per enum, no magic characters scattered around.</aside>
+</section>
+
+<section class="slide" data-robbie="Ninety or more and you get a certificate with my face on it. While I still have one.">
+  <p class="eyebrow">How the final is graded</p>
+  <h2>100 points, plus a bonus</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Check</th><th>Points</th></tr></thead>
+    <tbody>
+      <tr><td>Builds in release mode (or grading stops)</td><td>15</td></tr>
+      <tr><td>Hidden tests, including the exam-day features</td><td>40</td></tr>
+      <tr><td>Your own tests: 10 or more passing</td><td>10</td></tr>
+      <tr><td>clippy: minus 1 per warning</td><td>10</td></tr>
+      <tr><td>fmt</td><td>5</td></tr>
+      <tr><td>Docs and README</td><td>5</td></tr>
+      <tr><td>Code review</td><td>15</td></tr>
+      <tr><td>Stretch: WebAssembly, a terminal view, or async</td><td>+5</td></tr>
+    </tbody>
+  </table></div>
+  {show("cargo run --release --manifest-path grader/Cargo.toml -- check final", "sh", "run the grader yourself")}
+  <aside class="speaker">The course grade: quizzes 15%, homework 25%, checkpoints 20%, final 40%. 90 and up earns the Rustacean certificate (the Review Lab draws it). Students can run the grader as often as they like; without the hidden tests it uses the visible ones, so every other number is exactly what you'll see.</aside>
+</section>
+
+<section class="slide" data-robbie="That&#x27;s the course. 95% rust, 100% proud. Go and build something. I&#x27;ll be on the shelf, cheering. Quietly. Flakily." data-emote="happy">
+  <p class="eyebrow">Recap</p>
+  <h2>What you can do now</h2>
+  <ul class="big-list">
+    <li>Write a macro with several arms, repetition and recursion.</li>
+    <li>Explain what <code>unsafe</code> unlocks, and wrap it in a safe function with a SAFETY comment.</li>
+    <li>Call C from Rust, and make Rust callable from C.</li>
+    <li>Benchmark in release mode, and handle overflow on purpose.</li>
+    <li>Build for the web, document with tested examples, and get a crate ready to publish.</li>
+  </ul>
+  <div class="cta-row"><a class="btn primary" href="quiz.html">Take Quiz 6</a><a class="btn" href="final.html">Final project</a><a class="btn" href="handbook.html">Open the handbook</a></div>
+  <aside class="speaker">Close the course: in three weeks students went from cargo new to unsafe FFI and a threaded app with tests. Robbie's line is the last of the course. Then Quiz 6, and the final project is due on exam day.</aside>
+</section>
+
+</main>
+
+<div class="wrap"><nav class="deck-nav" aria-label="Slide controls">
+  <button class="btn prev" type="button">← Back</button>
+  <button class="btn primary next" type="button">Next →</button>
+  <span class="prog" aria-hidden="true"><i></i></span>
+  <span class="count">1 / 1</span>
+  <button class="btn ghost notes" type="button">Speaker notes</button>
+</nav></div>
+
+<script>
+window.ROBBIE_PAGE = {
+  "greeting": "Session 6 slides, the last ones. A few examples fail on purpose and one panics on purpose. Press Run and read what happens.",
+  "tips": [
+    "Try a function first, then a generic, then a macro.",
+    "Every unsafe block gets a SAFETY comment. No comment, no block.",
+    "Benchmark with --release, or you're timing the debug checks."
+  ],
+  "eli5": [
+    "A macro is a stamp that prints code.",
+    "unsafe is a door marked 'staff only'. You can go in, but you sign the book."
+  ],
+  "hype": [
+    "Last session. You know more Rust than most people who say they know Rust.",
+    "95% rust and still presenting. Legend behaviour."
+  ]
+};
+</script>
+<script src="../../assets/js/course.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="../../assets/js/site.js"></script>
+<script src="../../assets/js/robbie.js"></script>
+<script src="../../assets/js/slides.js"></script>
+<script type="module" src="../../assets/js/robbie3d.js"></script>
+</body>
+</html>

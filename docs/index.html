@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>RUSTUP</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="RUSTUP: a three-week, six-session Rust master class with Robbie the robot as your teaching assistant.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=IBM+Plex+Sans:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="assets/css/site.css">
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/" } }</script>
+</head>
+<body data-base="." data-page="home" data-rust="0">
+<header class="topbar" data-crumbs='[{"t":"Course map"}]'></header>
+
+<main class="wrap">
+  <section class="hero">
+    <div>
+      <p class="eyebrow">A Rust master class · 3 weeks · 6 sessions</p>
+      <h1>Learn <span class="r">Rust</span> before Robbie does.</h1>
+      <p class="lede">From your first <code>cargo new</code> to a tested, linted, graded app you built yourself. Robbie, your robot teaching assistant, rusts a little more every session. Keep up, or he'll finish the course before you do.</p>
+      <div class="cta-row">
+        <a class="btn primary" href="sessions/s1/index.html">Start Session 1</a>
+        <a class="btn" href="#map">See the course map</a>
+        <a class="btn ghost" href="#setup">Install Rust</a>
+      </div>
+    </div>
+    <!-- Video-ready: add data-video="assets/video/<name>.mp4" to this figure and the loop plays over the still. -->
+    <figure class="hero-img" style="margin:0">
+      <img src="assets/img/robbie-tvshow.jpg" alt="Robbie v11, an ivory paneled robot with a cassette deck chest, standing on a TV studio set lit by an LED wall" width="1200" height="1500">
+      <figcaption>Robbie v11, on set. Rust level: zero. For now.</figcaption>
+    </figure>
+  </section>
+
+  <div class="spec" role="list">
+    <div role="listitem"><b>6</b><span>live sessions, Monday and Thursday</span></div>
+    <div role="listitem"><b>5 + 1</b><span>homeworks, then the final project</span></div>
+    <div role="listitem"><b>8</b><span>tests: 6 quizzes and 2 checkpoints</span></div>
+    <div role="listitem"><b>100</b><span>points on the final, scored by cargo itself</span></div>
+  </div>
+
+  <h2 id="map">The course map</h2>
+  <p class="muted">Each session has a Presentation, a Student Handbook, a Quiz, a lab and homework. Teachers get a Notebook with the answers in the repo's teacher folder. The bar on each card is how much of Robbie is rust by that session, and each card weathers to match.</p>
+  <div class="map" id="mapGrid"></div>
+
+  <h2>Robbie's rust schedule</h2>
+  <p class="muted">Robbie was rendered in Blender at every stage of the course. By Session 6 he's earned every flake. You'll have earned your Rust.</p>
+  <div class="rust-strip" role="list">
+    <figure role="listitem"><img src="assets/img/robbie-rust-0-sm.jpg" alt="Robbie at Session 1, factory shiny" width="320" height="400" loading="lazy"><figcaption>Session 1 · shiny</figcaption></figure>
+    <figure role="listitem"><img src="assets/img/robbie-rust-1-sm.jpg" alt="Robbie at Session 2, about 15 percent rust, at his joints and where rain sits" width="320" height="400" loading="lazy"><figcaption>Session 2 · 15%</figcaption></figure>
+    <figure role="listitem"><img src="assets/img/robbie-rust-2-sm.jpg" alt="Robbie at Session 3, about a third rust, with stains running down his armor" width="320" height="400" loading="lazy"><figcaption>Session 3 · 32%</figcaption></figure>
+    <figure role="listitem"><img src="assets/img/robbie-rust-3-sm.jpg" alt="Robbie at Session 4, half rust: joints, shoulders, feet and every seam" width="320" height="400" loading="lazy"><figcaption>Session 4 · 50%</figcaption></figure>
+    <figure role="listitem"><img src="assets/img/robbie-rust-4-sm.jpg" alt="Robbie at Session 5, almost three quarters rust, with a kneecap and one hand plate rusted off" width="320" height="400" loading="lazy"><figcaption>Session 5 · 72%</figcaption></figure>
+    <figure role="listitem"><img src="assets/img/robbie-rust-5-sm.jpg" alt="Robbie at Session 6, nearly all rust, most armor fallen off and only a cracked chrome chest plate left" width="320" height="400" loading="lazy"><figcaption>Session 6 · 95%</figcaption></figure>
+  </div>
+
+  <h2>How a session works</h2>
+  <div class="how">
+    <div>
+      <p class="eyebrow">60 minutes</p>
+      <h3>Presentation</h3>
+      <p>Slides with real code you can run from the page. Arrow keys move, <kbd>N</kbd> shows the teacher's speaker notes.</p>
+    </div>
+    <div>
+      <p class="eyebrow">45 minutes</p>
+      <h3>Guided lab</h3>
+      <p>A small build in class. Each lab turns into a piece of the final app, so nothing you write is throwaway.</p>
+    </div>
+    <div>
+      <p class="eyebrow">15 minutes</p>
+      <h3>Quiz</h3>
+      <p>Twelve quick questions, scored instantly. Robbie celebrates the right answers and shrugs, politely, at the wrong ones.</p>
+    </div>
+  </div>
+
+  <h2>The final: Robbie Mission Control</h2>
+  <p>You build <code>robbie-mc</code>: a Rust app that loads a mission file, drives one or more Robbies around a grid world, and prints a mission report. The grader runs the same tools professionals use, in this order:</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Check</th><th>Command</th><th>Points</th></tr></thead>
+    <tbody>
+      <tr><td>Builds</td><td><code>cargo build --release</code></td><td>15</td></tr>
+      <tr><td>Hidden tests</td><td><code>cargo test</code> with the grader's tests, exam day included</td><td>40</td></tr>
+      <tr><td>Your own tests</td><td><code>cargo test</code>, 10 or more of your own</td><td>10</td></tr>
+      <tr><td>Lint</td><td><code>cargo clippy --all-targets</code></td><td>10</td></tr>
+      <tr><td>Format</td><td><code>cargo fmt --check</code></td><td>5</td></tr>
+      <tr><td>Docs</td><td><code>cargo doc</code> and a README</td><td>5</td></tr>
+      <tr><td>Code review</td><td>Rubric, in the Review Lab</td><td>15</td></tr>
+      <tr><td>Stretch goal</td><td>wasm, a terminal view or an async fleet</td><td>+5</td></tr>
+    </tbody>
+  </table></div>
+  <div class="mats">
+    <a class="mat" href="sessions/s6/final.html"><span class="kind">Final project · 40% of the course</span><b>Robbie Mission Control</b><span>The brief, the rubric, exam day and the stretch goals.</span></a>
+    <a class="mat" href="sessions/s6/arena.html"><span class="kind">Tool · in your browser</span><b>Robbie Arena</b><span>Run any mission tile by tile, and check your program's output against the spec.</span></a>
+    <a class="mat" href="review-lab.html"><span class="kind">Tool · in your browser</span><b>Review Lab</b><span>Read a grader report in plain English, score a code review, and work out your course grade.</span></a>
+  </div>
+
+  <h2 id="setup">Install Rust (10 minutes, once)</h2>
+  <p>On macOS or Linux, paste this into a terminal and accept the defaults:</p>
+  <pre data-lang="sh" data-title="terminal">curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh</pre>
+  <p>On Windows, download and run <a href="https://rustup.rs" target="_blank" rel="noopener">rustup-init.exe from rustup.rs</a>. Then check it worked:</p>
+  <pre data-lang="sh" data-title="terminal">rustc --version
+cargo --version
+rustup component add clippy rustfmt</pre>
+  <p class="muted">No install yet? Every runnable example in the slides has a Run button that uses the online Rust Playground.</p>
+
+  <footer class="site">RUSTUP · Robbie v11 designed and built in Blender by c1t1zen · Rust is a trademark of the Rust Foundation; this course is independent.</footer>
+</main>
+
+<script>
+window.ROBBIE_PAGE = {
+  greeting: "Hi! I'm Robbie. I'm brand new and shiny, and I'll rust a little every session. Start with Session 1 and tap me any time you're stuck.",
+  tips: [
+    "Install Rust with rustup, not your package manager. rustup keeps the compiler, cargo, clippy and rustfmt in sync.",
+    "Do the homework. Each one becomes a part of your final project, so skipping one is like skipping a leg. I would know, I have tracks.",
+    "The quizzes save your score in this browser, so you can see your progress on the course map."
+  ],
+  eli5: ["Rust is a programming language that checks your code very carefully before it runs, so lots of crashes simply can't happen."],
+  hype: ["Three weeks from now you'll have shipped a real Rust app. Future you is already impressed.", "Every expert was once someone who typed cargo new and hoped for the best."]
+};
+</script>
+<script src="assets/js/course.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="assets/js/site.js"></script>
+<script>
+(function () {
+  const C = window.RUSTUP, prog = window.RUSTUP_PROGRESS;
+  const grid = document.getElementById("mapGrid");
+  grid.innerHTML = C.sessions.map(s => {
+    const best = prog && prog.get("quiz:" + s.id);
+    const lvl = s.rustPct + "%";
+    const links = s.ready
+      ? `<a class="btn primary" href="sessions/${s.id}/index.html">Open session</a><a class="btn" href="sessions/${s.id}/quiz.html">${s.quiz.split(" +")[0]}</a>`
+      : `<span class="btn" aria-disabled="true">Coming next</span>`;
+    return `<article class="sess ${s.ready ? "" : "locked"}" data-rust="${s.rust}">
+      ${best != null ? `<span class="done-badge">Quiz ${best}%</span>` : ""}
+      <span class="num">${String(s.n).padStart(2, "0")}</span>
+      <span class="when">Week ${s.week} · ${s.day}</span>
+      <h3>${s.theme}</h3>
+      <p class="muted" style="margin:0;font-size:.9rem">${s.blurb}</p>
+      <ul>${s.topics.slice(0, 4).map(t => `<li>${t}</li>`).join("")}</ul>
+      <div class="rustmeter" title="How much of Robbie is rust this session">Rust <i style="--lvl:${lvl}"></i> ${s.rustPct}%</div>
+      <div class="links">${links}</div>
+    </article>`;
+  }).join("");
+})();
+</script>
+<script src="assets/js/robbie.js"></script>
+<script type="module" src="assets/js/robbie3d.js"></script>
+</body>
+</html>

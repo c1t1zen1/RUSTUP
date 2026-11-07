@@ -1,0 +1,754 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Teaching Robbie New Tricks Slides</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=IBM+Plex+Sans:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../assets/css/site.css">
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/" } }</script>
+</head>
+<body data-base="../.." data-page="s4-presentation" data-rust="3">
+<header class="topbar" data-crumbs='[{"t": "Course map", "href": "../../index.html"}, {"t": "Session 4", "href": "index.html"}, {"t": "Presentation"}]'></header>
+
+<main class="wrap deck">
+
+<section class="slide" data-robbie="Session 4. I&#x27;m half rust now. The good news: my new tricks don&#x27;t need knees." data-emote="wave">
+  <p class="eyebrow">Session 4 · Week 2 · Thursday</p>
+  <h2 style="font-size:clamp(2.6rem,8vw,5rem)">Teaching Robbie New Tricks</h2>
+  <p class="big-line">Collections, traits, generics, closures and iterators: how to write code once and use it for many kinds of things.</p>
+  <p class="muted">Press <kbd>→</kbd> to go on, <kbd>N</kbd> for speaker notes.</p>
+  <aside class="speaker">Robbie is half rust today: knees, elbows, shoulders and every edge the rain ran off. Running joke: he's learning new tricks precisely because the old joints don't do the old ones any more. Today is the most "aha" session of the course for people from Java, C# or Python, because traits replace inheritance.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">Today's flight plan</p>
+  <h2>Two and a half hours</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Time</th><th>Block</th></tr></thead>
+    <tbody>
+      <tr><td>0:00</td><td>Homework 3 and Checkpoint 1 review</td></tr>
+      <tr><td>0:15</td><td><code>Vec</code> and <code>HashMap</code></td></tr>
+      <tr><td>0:30</td><td>Traits: shared behaviour</td></tr>
+      <tr><td>0:55</td><td>Generics and trait bounds</td></tr>
+      <tr><td>1:10</td><td>Break (Robbie gets his knees oiled)</td></tr>
+      <tr><td>1:20</td><td>Closures and iterators</td></tr>
+      <tr><td>1:40</td><td>Lifetimes, properly this time</td></tr>
+      <tr><td>1:50</td><td>Lab: Mission Planner</td></tr>
+      <tr><td>2:20</td><td>Quiz 4, homework kickoff</td></tr>
+    </tbody>
+  </table></div>
+  <aside class="speaker">Checkpoint 1 review: look at which session's questions the room missed and spend the first ten minutes there. Homework 3: show a run_script that used ? cleanly, and one that forgot to count blank lines.</aside>
+</section>
+
+<section class="slide" data-robbie="A Vec is a shelf that grows. Mine holds spare parts. It&#x27;s growing very fast.">
+  <p class="eyebrow">Vec</p>
+  <h2>A list that grows</h2>
+  <pre data-run>fn main() {
+    // vec! builds a Vec with items already in it
+    let mut parts = vec![String::from("left knee"), String::from("right elbow")];
+    parts.push(String::from("antenna")); // push adds one to the end
+
+    println!("{} rusty parts", parts.len());
+    println!("first: {}", parts[0]);
+
+    // get() returns an Option, so a bad index can't crash you
+    match parts.get(10) {
+        Some(p) =&gt; println!("found {p}"),
+        None =&gt; println!("no part number 10"),
+    }
+
+    for p in &amp;parts {
+        println!("- {p}");
+    }
+}</pre>
+  <ul>
+    <li><code>vec![...]</code> makes one with items, <code>push</code> adds to the end.</li>
+    <li><code>parts[0]</code> panics on a bad index. <code>parts.get(10)</code> gives an <code>Option</code> instead.</li>
+    <li>Loop over <code>&amp;parts</code> to borrow; looping over <code>parts</code> moves the whole Vec.</li>
+  </ul>
+  <aside class="speaker">A Vec is three numbers on the stack (pointer, length, capacity) and the items on the heap. That picture explains the next slide. Ask: what's the difference between for p in parts and for p in &amp;parts? (The first consumes the Vec; Session 2 callback.)</aside>
+</section>
+
+<section class="slide" data-robbie="Holding a reference while the Vec moves house. Classic. The compiler stops it. My landlord didn&#x27;t." data-emote="look">
+  <p class="eyebrow">Vec and the borrow checker</p>
+  <h2>Why you can't push while you're looking</h2>
+  <p class="muted">Fails on purpose (E0502). Press Run and read the error.</p>
+  <pre data-run>fn main() {
+    let mut readings = vec![87, 42, 99];
+    let first = &amp;readings[0]; // a shared borrow into the Vec
+    readings.push(13); // push may move the whole Vec to new memory
+    println!("first reading: {first}");
+}</pre>
+  <p>When a Vec runs out of room, <code>push</code> moves every item to a bigger block of memory. A reference into the old block would point at nothing. Rust sees the shared borrow <code>first</code> still in use and refuses the <code>&amp;mut</code> that <code>push</code> needs (E0502).</p>
+  <div class="callout mnemonic"><span class="tag">Remember this</span><p><b>Don't hold a page number while someone rebinds the book.</b> Read the value out first (<code>let first = readings[0];</code> copies it), or push before you borrow.</p></div>
+  <aside class="speaker">This is the classic "iterator invalidation" bug from C++, caught at compile time. Fix it live two ways: copy the value out (i32 is Copy), or move the println above the push so the borrow ends first.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">HashMap</p>
+  <h2>Look things up by name</h2>
+  <pre data-run>use std::collections::HashMap;
+
+fn main() {
+    let mut rust_level: HashMap&lt;String, u8&gt; = HashMap::new();
+    rust_level.insert(String::from("knees"), 60);
+    rust_level.insert(String::from("antenna"), 15);
+    rust_level.insert(String::from("knees"), 65); // same key: replaces 60
+
+    println!("knees: {:?}", rust_level.get("knees"));
+    println!("toes: {:?}", rust_level.get("toes"));
+
+    if let Some(level) = rust_level.get_mut("antenna") {
+        *level += 5;
+    }
+
+    let mut parts: Vec&lt;_&gt; = rust_level.iter().collect();
+    parts.sort(); // a HashMap has no order, so sort before printing
+    println!("{parts:?}");
+}</pre>
+  <ul>
+    <li><code>insert</code> adds or replaces. <code>get</code> gives an <code>Option&lt;&amp;V&gt;</code>.</li>
+    <li>A HashMap has <b>no order</b>. Sort the pairs before you print or test them.</li>
+    <li>Need order? <code>BTreeMap</code> keeps keys sorted, with the same methods.</li>
+  </ul>
+  <aside class="speaker">HashMap isn't in the prelude, so it needs a use line. The iteration order is deliberately randomised per run (a defence against hash-flooding attacks). Students who print a HashMap in a test will see it pass and then fail; tell them now.</aside>
+</section>
+
+<section class="slide" data-robbie="Entry, or insert, then bump. That&#x27;s how I count squeaks. Current count: yes." data-emote="think">
+  <p class="eyebrow">The entry API</p>
+  <h2>Count anything in one line</h2>
+  <pre data-run>use std::collections::HashMap;
+
+fn main() {
+    let log = "squeak clunk squeak beep squeak clunk";
+    let mut counts: HashMap&lt;&amp;str, u32&gt; = HashMap::new();
+    for sound in log.split_whitespace() {
+        // find the slot for this key, make it 0 if it's new, then add 1
+        *counts.entry(sound).or_insert(0) += 1;
+    }
+    let mut sorted: Vec&lt;_&gt; = counts.into_iter().collect();
+    sorted.sort_by(|a, b| b.1.cmp(&amp;a.1).then(a.0.cmp(b.0)));
+    println!("{sorted:?}");
+}</pre>
+  <p><code>entry(key)</code> finds the slot for a key. <code>.or_insert(0)</code> fills it with 0 if it's new and hands you a <code>&amp;mut</code> to the value either way. <code>*... += 1</code> bumps it.</p>
+  <div class="callout mnemonic"><span class="tag">Remember this</span><p><b>Entry, or insert, then bump.</b> <code>*map.entry(k).or_insert(0) += 1</code> is the tally-counter idiom. You'll use it in the lab and the homework.</p></div>
+  <aside class="speaker">Compare to the Python dict.get(k, 0) + 1 dance, which looks the key up twice. The entry API looks it up once. or_insert_with(Vec::new) is the version for building lists per key.</aside>
+</section>
+
+<section class="slide" data-robbie="A trait is a job description. If you can do the job, you&#x27;re hired. Even if you&#x27;re a toaster." data-emote="happy">
+  <p class="eyebrow">Traits</p>
+  <h2>"Anything that can do this"</h2>
+  <pre data-run>trait Speak {
+    fn speak(&amp;self) -&gt; String;
+}
+
+struct Robot {
+    name: String,
+}
+
+struct Toaster;
+
+impl Speak for Robot {
+    fn speak(&amp;self) -&gt; String {
+        format!("Hello, I am {}.", self.name)
+    }
+}
+
+impl Speak for Toaster {
+    fn speak(&amp;self) -&gt; String {
+        String::from("Ding!")
+    }
+}
+
+fn main() {
+    let robbie = Robot {
+        name: String::from("Robbie"),
+    };
+    println!("{}", robbie.speak());
+    println!("{}", Toaster.speak());
+}</pre>
+  <p>A <b>trait</b> names a behaviour: a list of methods a type promises to have. Any type can sign up with <code>impl Trait for Type</code>. A robot and a toaster have nothing in common except that both can <code>speak</code>, and that's enough.</p>
+  <aside class="speaker">For Java and C# folks: a trait is an interface. For Python folks: it's duck typing that the compiler checks. There's no inheritance in Rust; you build behaviour by implementing traits, and share code with default methods (next slide) and generics.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">Default methods</p>
+  <h2>Write it once, override when you need to</h2>
+  <pre data-run>trait Speak {
+    fn name(&amp;self) -&gt; String;
+
+    // a default method: every implementor gets it for free
+    fn greet(&amp;self) -&gt; String {
+        format!("Hi, I'm {}!", self.name())
+    }
+}
+
+struct Robot;
+struct Parrot;
+
+impl Speak for Robot {
+    fn name(&amp;self) -&gt; String {
+        String::from("Robbie")
+    }
+}
+
+impl Speak for Parrot {
+    fn name(&amp;self) -&gt; String {
+        String::from("Polly")
+    }
+    // ...or it can bring its own
+    fn greet(&amp;self) -&gt; String {
+        String::from("Polly wants a cracker!")
+    }
+}
+
+fn main() {
+    println!("{}", Robot.greet());
+    println!("{}", Parrot.greet());
+}</pre>
+  <p>A trait can provide a method body. Every type that implements the trait gets it for free, and any type can replace it with its own. The default can call the trait's other methods, even though it doesn't know which type it's running on.</p>
+  <aside class="speaker">The homework uses exactly this: Bot::label has a default, and Robbie overrides it to add "squeak" when he's 50% rust or more. Point out that greet calls self.name(), a method it hasn't seen implemented yet.</aside>
+</section>
+
+<section class="slide" data-robbie="Missing method? The compiler hands you the signature. It&#x27;s like a substitute teacher who brings the answers.">
+  <p class="eyebrow">Keeping the promise</p>
+  <h2>A trait is a contract, all of it</h2>
+  <p class="muted">Fails on purpose (E0046). Press Run and read the error.</p>
+  <pre data-run>trait Bot {
+    fn name(&amp;self) -&gt; String;
+    fn power(&amp;self) -&gt; u32;
+}
+
+struct Drone;
+
+impl Bot for Drone {
+    fn name(&amp;self) -&gt; String {
+        String::from("Zippy")
+    }
+    // power() is missing
+}
+
+fn main() {
+    println!("{}", Drone.name());
+}</pre>
+  <p>Forget a required method and the compiler names it (E0046). Its help even offers the exact signature to paste in. Default methods are the only ones you can leave out.</p>
+  <aside class="speaker">Run it. Read the "missing power in implementation" error and copy the suggested signature in. Then ask: which methods could the trait have given defaults for, and why not power?</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">Traits as parameters</p>
+  <h2>Functions that take "anything that can speak"</h2>
+  <pre data-run>trait Speak {
+    fn speak(&amp;self) -&gt; String;
+}
+
+struct Robot;
+impl Speak for Robot {
+    fn speak(&amp;self) -&gt; String {
+        String::from("beep boop")
+    }
+}
+
+// "anything that can speak", the short way
+fn announce(thing: &amp;impl Speak) {
+    println!("Announcing: {}", thing.speak());
+}
+
+// the same thing, the long way, with a generic and a trait bound
+fn announce_twice&lt;T: Speak&gt;(thing: &amp;T) {
+    println!("{0} {0}", thing.speak());
+}
+
+fn main() {
+    announce(&amp;Robot);
+    announce_twice(&amp;Robot);
+}</pre>
+  <p><code>&amp;impl Speak</code> is shorthand for a generic type <code>T</code> with the bound <code>T: Speak</code>. Both mean: I'll take any type, as long as it implements <code>Speak</code>. The compiler writes a separate copy for each type you actually use, so it's as fast as if you'd written them by hand.</p>
+  <aside class="speaker">That compile-time copying is called monomorphization. It's why Rust generics cost nothing at runtime. Use impl Trait for simple cases; the long form when two parameters must be the same type, or when bounds get long.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">derive</p>
+  <h2>Traits the compiler writes for you</h2>
+  <pre data-run>#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+struct Battery(u8);
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+enum Rust {
+    None,
+    Spotty,
+    Streaky,
+    Flaky,
+}
+
+fn main() {
+    let a = Battery(87);
+    let b = a; // Copy: a is still usable
+    println!("{a:?} == {b:?}? {}", a == b);
+    println!("{:?} &lt; {:?}? {}", Battery(20), a, Battery(20) &lt; a);
+    // derived Ord on an enum follows the order the variants are written in
+    println!("Flaky worse than Spotty? {}", Rust::Flaky &gt; Rust::Spotty);
+    println!("{:?}", [Rust::Streaky, Rust::None].iter().max());
+}</pre>
+  <div class="tablewrap"><table>
+    <thead><tr><th>derive</th><th>Gives you</th></tr></thead>
+    <tbody>
+      <tr><td><code>Debug</code></td><td><code>{:?}</code> printing</td></tr>
+      <tr><td><code>Clone</code> / <code>Copy</code></td><td><code>.clone()</code> / copy instead of move</td></tr>
+      <tr><td><code>PartialEq</code> / <code>Eq</code></td><td><code>==</code> and <code>!=</code></td></tr>
+      <tr><td><code>PartialOrd</code> / <code>Ord</code></td><td><code>&lt;</code>, <code>&gt;</code>, sorting, <code>max</code></td></tr>
+      <tr><td><code>Hash</code></td><td>Use it as a <code>HashMap</code> key</td></tr>
+      <tr><td><code>Default</code></td><td><code>Type::default()</code></td></tr>
+    </tbody>
+  </table></div>
+  <aside class="speaker">derive works when every field already implements the trait. You can't derive Copy for a struct with a String in it. Derived Ord on an enum follows declaration order, which is a neat trick for severity levels.</aside>
+</section>
+
+<section class="slide" data-robbie="Debug is my service manual. Display is my business card. Both say &#x27;rusty&#x27;.">
+  <p class="eyebrow">Display</p>
+  <h2>Teach your type to print itself</h2>
+  <pre data-run>use std::fmt;
+
+struct Robot {
+    name: String,
+    rust: u8,
+}
+
+impl fmt::Display for Robot {
+    fn fmt(&amp;self, f: &amp;mut fmt::Formatter) -&gt; fmt::Result {
+        write!(f, "{} ({}% rust)", self.name, self.rust)
+    }
+}
+
+fn main() {
+    let robbie = Robot {
+        name: String::from("Robbie"),
+        rust: 50,
+    };
+    println!("{robbie}"); // uses Display
+    let label = robbie.to_string(); // Display gives you to_string for free
+    println!("{} characters", label.len());
+}</pre>
+  <p><code>Debug</code> is for programmers and can be derived. <code>Display</code> is for people, so you write it yourself. Implement it once and you get <code>{}</code>, <code>format!</code> and <code>.to_string()</code> for free.</p>
+  <aside class="speaker">You did this in Homework 3 for the error types. That's the pattern: implement a standard trait, and the standard library lights up for your type. Same for Iterator, From, Default, Add and more.</aside>
+</section>
+
+<section class="slide" data-robbie="Generics: one stencil, many robots. I&#x27;m the stencil. Look at my perfect shape. Ignore the flakes." data-emote="think">
+  <p class="eyebrow">Generics</p>
+  <h2>One function, many types</h2>
+  <pre data-run>fn largest&lt;T: PartialOrd + Copy&gt;(items: &amp;[T]) -&gt; T {
+    let mut best = items[0];
+    for &amp;item in items {
+        if item &gt; best {
+            best = item;
+        }
+    }
+    best
+}
+
+fn main() {
+    println!("{}", largest(&amp;[87, 42, 99, 13]));
+    println!("{}", largest(&amp;[0.5, 2.25, 1.0]));
+    println!("{}", largest(&amp;['r', 'u', 's', 't']));
+}</pre>
+  <p><code>&lt;T: PartialOrd + Copy&gt;</code> reads: "for any type <code>T</code> that can be compared and copied". Numbers, floats and chars all qualify, so one <code>largest</code> covers them all.</p>
+  <div class="callout mnemonic"><span class="tag">Remember this</span><p><b>Generics are a stencil, bounds are the fine print.</b> The stencil fits any shape, but the fine print says what the shape has to be able to do.</p></div>
+  <aside class="speaker">items[0] panics on an empty slice. The homework's version returns Option&lt;T&gt; instead; ask the room how they'd write that (hint: items.first()?).</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">Bounds matter</p>
+  <h2>The compiler only trusts what you promised</h2>
+  <p class="muted">Fails on purpose (E0369). Press Run and read the error.</p>
+  <pre data-run>fn largest&lt;T&gt;(items: &amp;[T]) -&gt; &amp;T {
+    let mut best = &amp;items[0];
+    for item in items {
+        if item &gt; best {
+            best = item;
+        }
+    }
+    best
+}
+
+fn main() {
+    println!("{}", largest(&amp;[87, 42, 99]));
+}</pre>
+  <p>Without a bound, <code>T</code> could be anything, including types that can't be compared, so <code>&gt;</code> isn't allowed (E0369). The error message suggests the fix: add <code>T: PartialOrd</code>.</p>
+  <aside class="speaker">This is the key difference from C++ templates: Rust checks the generic body once, against the bounds, not later against each use. The errors appear where you wrote the function, not three files away.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">Generic types</p>
+  <h2>Structs can be generic too</h2>
+  <pre data-run>#[derive(Debug)]
+struct Pair&lt;T&gt; {
+    left: T,
+    right: T,
+}
+
+impl&lt;T: PartialOrd&gt; Pair&lt;T&gt; {
+    fn bigger(&amp;self) -&gt; &amp;T {
+        if self.left &gt;= self.right {
+            &amp;self.left
+        } else {
+            &amp;self.right
+        }
+    }
+}
+
+fn main() {
+    let arms = Pair {
+        left: 40,
+        right: 72,
+    };
+    let names = Pair {
+        left: "Robbie",
+        right: "Zippy",
+    };
+    println!("{arms:?} -&gt; {}", arms.bigger());
+    println!("{names:?} -&gt; {}", names.bigger());
+}</pre>
+  <p>You've used generic types all along: <code>Vec&lt;T&gt;</code>, <code>Option&lt;T&gt;</code>, <code>Result&lt;T, E&gt;</code>, <code>HashMap&lt;K, V&gt;</code>. An <code>impl</code> block can add bounds, so <code>bigger</code> only exists when <code>T</code> can be compared.</p>
+  <aside class="speaker">Option is literally enum Option&lt;T&gt; { Some(T), None }. Seeing that after Session 3 is a nice moment. The where clause version of bounds is in the handbook.</aside>
+</section>
+
+<section class="slide" data-robbie="dyn Speak: a box that says &#x27;something that talks is in here&#x27;. That&#x27;s also my resume.">
+  <p class="eyebrow">Trait objects</p>
+  <h2>Different types in one list</h2>
+  <pre data-run>trait Speak {
+    fn speak(&amp;self) -&gt; String;
+}
+
+struct Robot;
+struct Drone;
+struct Vacuum;
+
+impl Speak for Robot {
+    fn speak(&amp;self) -&gt; String {
+        "beep".into()
+    }
+}
+impl Speak for Drone {
+    fn speak(&amp;self) -&gt; String {
+        "bzzzz".into()
+    }
+}
+impl Speak for Vacuum {
+    fn speak(&amp;self) -&gt; String {
+        "vrrrm".into()
+    }
+}
+
+fn main() {
+    // one Vec, three different types: each lives in a Box behind the trait
+    let studio: Vec&lt;Box&lt;dyn Speak&gt;&gt; = vec![Box::new(Robot), Box::new(Drone), Box::new(Vacuum)];
+    for thing in &amp;studio {
+        println!("{}", thing.speak());
+    }
+}</pre>
+  <p>A <code>Vec</code> holds one type. <code>Box&lt;dyn Speak&gt;</code> is that one type: "a box holding something that can speak". Each call looks up the right method at runtime. You've seen <code>Box&lt;dyn Error&gt;</code> already; Session 5 opens up <code>Box</code> properly.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th></th><th>Generics <code>&lt;T: Speak&gt;</code></th><th>Trait objects <code>dyn Speak</code></th></tr></thead>
+    <tbody>
+      <tr><td>Decided</td><td>At compile time</td><td>At runtime</td></tr>
+      <tr><td>Mix types in one list?</td><td>No</td><td>Yes</td></tr>
+      <tr><td>Speed</td><td>Fastest</td><td>One pointer hop per call</td></tr>
+    </tbody>
+  </table></div>
+  <aside class="speaker">The homework garage is Vec&lt;Box&lt;dyn Bot&gt;&gt; because Robbie, drones and vacuums park side by side. Its hungriest function is generic because it works on a slice of one kind. Make sure students see both in one project.</aside>
+</section>
+
+<section class="slide" data-robbie="Closures are sticky notes with instructions. &#x27;Sort by length.&#x27; &#x27;Keep the rusty ones.&#x27; &#x27;Ignore the squeak.&#x27;" data-emote="happy">
+  <p class="eyebrow">Closures</p>
+  <h2>Little functions you write on the spot</h2>
+  <pre data-run>fn main() {
+    let double = |n: u32| n * 2;
+    println!("{}", double(21));
+
+    // a closure can use variables from where it was written
+    let limit = 50;
+    let too_rusty = |rust: u8| rust &gt; limit;
+    println!("{} {}", too_rusty(32), too_rusty(72));
+
+    // closures are how you customise library functions
+    let mut parts = vec!["knee", "antenna", "elbow"];
+    parts.sort_by_key(|p| p.len());
+    println!("{parts:?}");
+}</pre>
+  <p>A <b>closure</b> is an unnamed function, written <code>|args| body</code>. It can use variables from around it, like <code>limit</code>. That's what makes them perfect for telling library functions what to do: how to sort, what to keep, what to change.</p>
+  <aside class="speaker">Python folks: lambdas, but with full blocks allowed. JavaScript folks: arrow functions. The types of the parameters are usually inferred.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">Closures that change things</p>
+  <h2>Fn, FnMut, FnOnce</h2>
+  <pre data-run>fn main() {
+    let mut squeaks = 0;
+    // this closure changes squeaks, so it has to be mut itself
+    let mut walk = |steps: u32| {
+        squeaks += steps / 2;
+    };
+    walk(4);
+    walk(6);
+    println!("{squeaks} squeaks so far");
+}</pre>
+  <pre data-run>// returns "some closure that takes a u32 and gives a u32"
+fn make_charger(percent: u32) -&gt; impl Fn(u32) -&gt; u32 {
+    move |battery| (battery + percent).min(100)
+}
+
+fn main() {
+    let quick = make_charger(10);
+    let full = make_charger(100);
+    println!("{} {} {}", quick(50), quick(95), full(3));
+}</pre>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Trait</th><th>The closure...</th><th>Call it</th></tr></thead>
+    <tbody>
+      <tr><td><code>Fn</code></td><td>only reads what it captured</td><td>as often as you like</td></tr>
+      <tr><td><code>FnMut</code></td><td>changes what it captured</td><td>as often as you like, needs <code>mut</code></td></tr>
+      <tr><td><code>FnOnce</code></td><td>uses up (moves out) what it captured</td><td>once</td></tr>
+    </tbody>
+  </table></div>
+  <p><code>move</code> makes a closure take ownership of what it uses, so it can outlive the function that made it.</p>
+  <aside class="speaker">Same three-way split as self, &amp;self, &amp;mut self. Every closure is FnOnce; the ones that don't consume are also FnMut; the ones that don't mutate are also Fn. move matters most in Session 5, when closures run on other threads.</aside>
+</section>
+
+<section class="slide" data-robbie="A conveyor belt. Inspector, paint shop, box. I used to work on one. Then it rained." data-emote="think">
+  <p class="eyebrow">Iterators</p>
+  <h2>Say what you want, not how to loop</h2>
+  <pre data-run>fn main() {
+    let readings = [87, 12, 99, 45, 3, 76];
+
+    let low: Vec&lt;i32&gt; = readings.iter().filter(|&amp;&amp;r| r &lt; 50).copied().collect();
+    let total: i32 = readings.iter().sum();
+    let doubled: Vec&lt;i32&gt; = readings.iter().map(|r| r * 2).collect();
+    let any_critical = readings.iter().any(|&amp;r| r &lt; 5);
+
+    println!("low: {low:?}");
+    println!("total: {total}, average: {}", total / readings.len() as i32);
+    println!("doubled: {doubled:?}");
+    println!("any critical? {any_critical}");
+}</pre>
+  <p>An <b>iterator</b> hands out items one at a time. Adapters like <code>filter</code> and <code>map</code> build a pipeline; consumers like <code>collect</code>, <code>sum</code> and <code>any</code> run it.</p>
+  <div class="callout mnemonic"><span class="tag">Remember this</span><p><b>Iterators are a conveyor belt.</b> <code>filter</code> is the inspector, <code>map</code> is the paint shop, <code>collect</code> is the box at the end. Nothing moves until someone switches the belt on.</p></div>
+  <aside class="speaker">.iter() borrows items, .into_iter() takes them, .iter_mut() lets you change them. Same three choices as Session 2. The |&amp;&amp;r| pattern in filter is ugly; it's there because filter gets a reference to the item, which is itself a reference. .copied() tidies it.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">Iterators are lazy</p>
+  <h2>Nothing happens until someone asks</h2>
+  <pre data-run>fn main() {
+    let parts = ["knee", "elbow", "antenna", "visor", "toe"];
+    // nothing happens until something asks for items
+    let checked = parts.iter().map(|p| {
+        println!("  checking {p}");
+        p.len()
+    });
+    println!("built the iterator, nothing checked yet");
+    let first_two: Vec&lt;usize&gt; = checked.take(2).collect();
+    println!("lengths: {first_two:?}");
+}</pre>
+  <p>Building the pipeline does no work. <code>take(2)</code> plus <code>collect</code> asks for two items, so only two parts get checked. This is why iterator chains are as fast as hand-written loops, and sometimes faster.</p>
+  <aside class="speaker">If you build an iterator and never consume it, the compiler warns "iterators are lazy and do nothing unless consumed". Show that by deleting the collect line.</aside>
+</section>
+
+<section class="slide" data-robbie="enumerate counts, zip pairs, rev flips, fold squishes. My joints also squish. Not on purpose.">
+  <p class="eyebrow">The adapter toolbox</p>
+  <h2>enumerate, zip, rev, fold and friends</h2>
+  <pre data-run>fn main() {
+    let parts = ["knee", "elbow", "antenna"];
+    let rust = [60, 35, 15];
+
+    for (i, p) in parts.iter().enumerate() {
+        println!("{}. {p}", i + 1);
+    }
+    let pairs: Vec&lt;(&amp;str, i32)&gt; = parts.iter().copied().zip(rust).collect();
+    println!("{pairs:?}");
+
+    let worst = pairs.iter().max_by_key(|(_, r)| *r);
+    println!("worst: {worst:?}");
+
+    let sentence = parts
+        .iter()
+        .rev()
+        .fold(String::new(), |acc, p| acc + p + " ");
+    println!("backwards: {}", sentence.trim_end());
+
+    let countdown: Vec&lt;u32&gt; = (1..=10).rev().step_by(3).collect();
+    println!("{countdown:?}");
+}</pre>
+  <p>You don't need to memorize these. You need to know they exist, so you reach for the docs instead of writing a loop with three counters. The handbook's cheat sheet lists the common ones.</p>
+  <aside class="speaker">Spend a minute on fold: an accumulator and a closure, the general version that sum and collect are special cases of. max_by_key with a tuple pattern in the closure is lab-relevant.</aside>
+</section>
+
+<section class="slide" data-robbie="Lifetimes are a label on a borrowed tool: &#x27;return to the shorter-lived of these two owners&#x27;." data-emote="think">
+  <p class="eyebrow">Lifetimes, properly</p>
+  <h2>Which input does the answer borrow from?</h2>
+  <p class="muted">Fails on purpose (E0106). Press Run and read the error.</p>
+  <pre data-run>fn longer(a: &amp;str, b: &amp;str) -&gt; &amp;str {
+    if a.len() &gt;= b.len() { a } else { b }
+}
+
+fn main() {
+    println!("{}", longer("knee", "antenna"));
+}</pre>
+  <p>The function returns a reference, but from <code>a</code> or <code>b</code>? The compiler can't guess, so it asks (E0106). A <b>lifetime</b> annotation answers:</p>
+  <pre data-run>// 'a says: the answer lives no longer than the shorter-lived of a and b
+fn longer&lt;'a&gt;(a: &amp;'a str, b: &amp;'a str) -&gt; &amp;'a str {
+    if a.len() &gt;= b.len() { a } else { b }
+}
+
+fn main() {
+    let part = String::from("antenna");
+    let answer = longer("knee", &amp;part);
+    println!("{answer}");
+}</pre>
+  <p><code>'a</code> doesn't change how long anything lives. It's a label that ties the output to the inputs, so the compiler can check every caller.</p>
+  <aside class="speaker">Lifetime elision rules: with one reference input, or a &amp;self method, the output borrows from that and you write nothing. Two reference inputs and a reference output: you have to say. Session 2 said "lifetimes come later"; this is later.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">Lifetimes catch real bugs</p>
+  <h2>The answer can't outlive its source</h2>
+  <p class="muted">Fails on purpose (E0597). Press Run and read the error.</p>
+  <pre data-run>fn longer&lt;'a&gt;(a: &amp;'a str, b: &amp;'a str) -&gt; &amp;'a str {
+    if a.len() &gt;= b.len() { a } else { b }
+}
+
+fn main() {
+    let answer;
+    let knee = String::from("knee");
+    {
+        let antenna = String::from("antenna");
+        answer = longer(&amp;knee, &amp;antenna);
+    } // antenna is dropped here...
+    println!("{answer}"); // ...but answer might point into it
+}</pre>
+  <p>Because <code>longer</code> said the answer lives no longer than both inputs, the compiler knows <code>answer</code> might point into <code>antenna</code>, which is dropped too soon (E0597). In C this compiles and crashes on a Tuesday.</p>
+  <pre data-run>// a struct that borrows text instead of owning it
+struct Excerpt&lt;'a&gt; {
+    line: &amp;'a str,
+}
+
+impl&lt;'a&gt; Excerpt&lt;'a&gt; {
+    fn first_word(&amp;self) -&gt; &amp;'a str {
+        self.line.split_whitespace().next().unwrap_or("")
+    }
+}
+
+fn main() {
+    let log = String::from("SQUEAK detected in left knee. Again.");
+    let first_line = Excerpt {
+        line: log.split('.').next().unwrap_or(""),
+    };
+    println!("{} / {}", first_line.line, first_line.first_word());
+}</pre>
+  <p>A struct that holds a reference needs a lifetime too: an <code>Excerpt</code> can't outlive the text it borrows.</p>
+  <aside class="speaker">Lab step 5 is next_in_room&lt;'a&gt;(tasks: &amp;'a [Task], room: &amp;str) -&gt; Option&lt;&amp;'a Task&gt;. Ask why room doesn't need 'a: the answer never borrows from it. The lab has a test where room is dropped before the answer is used.</aside>
+</section>
+
+<section class="slide" data-robbie="Six errors. E0502 is the one you&#x27;ll meet most. Say hello. It&#x27;s grumpy but fair.">
+  <p class="eyebrow">Error field guide</p>
+  <h2>Six errors you'll meet this week</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Code</th><th>What it means</th><th>Usual fix</th></tr></thead>
+    <tbody>
+      <tr><td><code>E0502</code></td><td>Changing a Vec while a reference into it is alive</td><td>Copy the value out, or end the borrow first</td></tr>
+      <tr><td><code>E0046</code></td><td>A trait method is missing from your <code>impl</code></td><td>Paste in the signature the error suggests</td></tr>
+      <tr><td><code>E0369</code> / <code>E0599</code></td><td>A generic <code>T</code> is used in a way its bounds don't promise</td><td>Add the bound: <code>T: PartialOrd</code>, <code>T: Display</code></td></tr>
+      <tr><td><code>E0277</code></td><td>A type doesn't implement a trait you need</td><td>Implement or derive it</td></tr>
+      <tr><td><code>E0106</code></td><td>Returned reference with no lifetime</td><td>Add <code>&lt;'a&gt;</code> and tie it to the right input</td></tr>
+      <tr><td><code>E0597</code></td><td>Something is dropped while still borrowed</td><td>Make the owner live longer, or return an owned value</td></tr>
+    </tbody>
+  </table></div>
+  <aside class="speaker">Leave this up during the lab. E0277 shows up when students try to sort a Vec of f64 (f64 isn't Ord) or use a struct as a HashMap key without Hash.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">Lab · 30 minutes</p>
+  <h2>Robbie's Mission Planner</h2>
+  <div class="two">
+    <div>
+      <p>In <code>labs/lab4-mission-planner</code>, Robbie has a to-do list and an hour of battery. Turn it into a plan with iterators, closures and a HashMap.</p>
+      <pre data-lang="sh" data-title="terminal">cargo test step1   # minutes_left: filter, map, sum
+cargo test step2   # todo_list: collect, sort_by
+cargo test step3   # minutes_by_room: entry API
+cargo test step4   # plan: fit tasks in a budget
+cargo test step5   # next_in_room: find, and 'a
+cargo run          # print the plan</pre>
+    </div>
+    <div class="callout robbie"><img src="../../assets/img/robbie-face.jpg" alt=""><div><span class="tag">Robbie's rules</span>
+      <p>Steps 1 and 5 are each one iterator chain. Try that before you write a <code>for</code> loop. And put "find umbrella" first. It's priority 5 for a reason.</p>
+    </div></div>
+  </div>
+  <aside class="speaker">Step 2 is the hardest: sort_by with .cmp().then(). Write b.priority.cmp(&amp;a.priority) on the board and ask why b comes first (descending). Step 4 is a loop over todo_list's result, which is fine. Full solution: teacher/s4/lab4-solution-lib.rs.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">Homework 4 · due Session 5</p>
+  <h2>Bot Garage</h2>
+  <p>Robbie has company: Zippy the drone and Dusty the vacuum. Teach them all one trait, then build a garage that holds any mix of them on a fixed power budget.</p>
+  <ul>
+    <li>Implement <code>Bot</code> for <code>Robbie</code>, <code>Drone</code> and <code>Vacuum</code>, and override Robbie's <code>label</code> so he squeaks at 50% rust.</li>
+    <li>Build <code>Garage</code> on <code>Vec&lt;Box&lt;dyn Bot&gt;&gt;</code>: park, unpark, total power, names, a count by kind.</li>
+    <li>Refuse duplicates and overloads with <code>GarageError</code>, and change nothing when refusing.</li>
+    <li>Write two generic functions: <code>largest&lt;T&gt;</code> and <code>hungriest&lt;B: Bot&gt;</code>.</li>
+  </ul>
+  <p>8 visible tests, hidden edge cases, clippy and fmt: 10 points.</p>
+  <aside class="speaker">The hidden tests check: the squeak at exactly 50, names in any case, duplicate checked before budget, the exact budget fitting, refused bots changing nothing, unpark keeping order, empty garages, largest on empty and negative and float input, and ties going to the first bot.</aside>
+</section>
+
+<section class="slide" data-robbie="Recap, then Quiz 4. Next time there are many of me at once. The studio is not ready." data-emote="happy">
+  <p class="eyebrow">Recap</p>
+  <h2>What you can do now</h2>
+  <ul class="big-list">
+    <li>Store things in a <code>Vec</code> and look them up in a <code>HashMap</code>.</li>
+    <li>Describe shared behaviour with traits, and get some for free with <code>derive</code>.</li>
+    <li>Write one function or struct for many types with generics and bounds.</li>
+    <li>Pass behaviour around with closures.</li>
+    <li>Replace loops with iterator chains, and read a lifetime annotation.</li>
+  </ul>
+  <div class="cta-row"><a class="btn primary" href="quiz.html">Take Quiz 4</a><a class="btn" href="handbook.html">Open the handbook</a></div>
+  <aside class="speaker">Close: Robbie can now describe every bot in the studio with one trait. Next session there will be many Robbies at once, on threads. He's nervous. Then Quiz 4.</aside>
+</section>
+
+</main>
+
+<div class="wrap"><nav class="deck-nav" aria-label="Slide controls">
+  <button class="btn prev" type="button">← Back</button>
+  <button class="btn primary next" type="button">Next →</button>
+  <span class="prog" aria-hidden="true"><i></i></span>
+  <span class="count">1 / 1</span>
+  <button class="btn ghost notes" type="button">Speaker notes</button>
+</nav></div>
+
+<script>
+window.ROBBIE_PAGE = {
+  "greeting": "Session 4 slides. A few examples fail on purpose: press Run and read the error. Today's are short and friendly.",
+  "tips": [
+    "If a generic function won't compile, ask: what does my code do with T? Then say so in the bound.",
+    "Holding a reference into a Vec? Don't push until you're done with it.",
+    "iter() borrows, into_iter() takes, iter_mut() changes. Same three as Session 2."
+  ],
+  "eli5": [
+    "A trait is a job description. Any type that can do the job can apply.",
+    "An iterator is a conveyor belt. You add machines to it, then switch it on at the end."
+  ],
+  "hype": [
+    "Traits and iterators are where Rust starts to feel elegant. Enjoy it.",
+    "Halfway through the course. Halfway to scrap. We're in sync."
+  ]
+};
+</script>
+<script src="../../assets/js/course.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="../../assets/js/site.js"></script>
+<script src="../../assets/js/robbie.js"></script>
+<script src="../../assets/js/slides.js"></script>
+<script type="module" src="../../assets/js/robbie3d.js"></script>
+</body>
+</html>

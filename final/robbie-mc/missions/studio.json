@@ -1,0 +1,11 @@
+{
+  "map": "##########\n#..P...#.#\n#.##.#.P.#\n#P...#...#\n#..#...#P#\n##########",
+  "bots": [
+    { "name": "Robbie", "start": [1, 1], "facing": "E", "battery": 30,
+      "script": "# along the top, grab the first part\nforward 2\npick\nforward 3\nright\nforward\nleft\nforward\npick" },
+    { "name": "Zippy", "start": [1, 3], "facing": "N", "battery": 12,
+      "script": "pick\nright\nforward 3\nleft\nforward 5\nright\nforward 9" },
+    { "name": "Dusty", "start": [6, 3], "facing": "E", "battery": 3,
+      "script": "forward 2\nright\nforward 1\npick\nleft\nforward 2" }
+  ]
+}

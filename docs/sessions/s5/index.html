@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Session 5: Many Robbies at Once</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=IBM+Plex+Sans:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../assets/css/site.css">
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/" } }</script>
+</head>
+<body data-base="../.." data-page="s5" data-rust="4">
+<header class="topbar" data-crumbs='[{"t": "Course map", "href": "../../index.html"}, {"t": "Session 5"}]'></header>
+<main class="wrap">
+  <section class="hero">
+    <div>
+      <div class="hero-num"><span class="num" aria-hidden="true">05</span><p class="eyebrow">Session 5 · Week 3 · Monday</p></div>
+      <h1>Many Robbies <span class="r">at Once</span></h1>
+      <p class="lede">Smart pointers, threads, channels, async, tests and serde. By the end, a swarm of Robbies cleans the studio in parallel, and the compiler makes sure none of them trip over each other.</p>
+      <div class="rustmeter" style="--lvl:72%;max-width:320px"><span>Robbie's rust</span><i></i><span>72% · shedding parts</span></div>
+      <div class="cta-row">
+        <a class="btn primary" href="presentation.html">Open the slides</a>
+        <a class="btn" href="handbook.html">Read the handbook</a>
+      </div>
+    </div>
+    <!-- Video-ready: add data-video="assets/video/<name>.mp4" to this figure and the loop plays over the still. -->
+    <figure class="hero-img" style="margin:0">
+      <img src="../../assets/img/robbie-rust-4.jpg" alt="Robbie v11 in the studio, nearly all rust, with only patches of silver left on his head, arms and legs" width="800" height="1000">
+      <figcaption>Robbie at Session 5. Shedding parts, gaining helpers.</figcaption>
+    </figure>
+  </section>
+
+  <h2>Session materials</h2>
+  <div class="mats">
+    <a class="mat" href="presentation.html"><span class="kind">Presentation · 60 min</span><b>Slides</b><span>25 slides with runnable code, a few broken on purpose and one that panics on purpose. Arrow keys to move, N for the teacher's speaker notes.</span></a>
+    <a class="mat" href="handbook.html#cheat"><span class="kind">Cheat sheet</span><b>One page, all of Session 5</b><span>Box, Rc, RefCell, threads, channels, Arc and Mutex, tokio, tests and serde on one screen.</span></a>
+    <a class="mat" href="handbook.html"><span class="kind">Student Handbook</span><b>Many Robbies at Once Handbook</b><span>Every idea from today with runnable examples, memory tricks, an error field guide and 10 practice questions.</span></a>
+    <a class="mat" href="quiz.html"><span class="kind">Quiz 5 · 15 min</span><b>Many Robbies at Once Quiz</b><span>12 questions, pass mark 70%. Your best score is saved in this browser.</span></a>
+    <a class="mat" href="checkpoint.html"><span class="kind">Checkpoint 2 · take home</span><b>Review of Sessions 4 and 5</b><span>15 questions across traits, iterators, smart pointers and threads. Due before Session 6.</span></a>
+  </div>
+
+  <h2>Build it</h2>
+  <div class="mats">
+    <a class="mat" href="https://github.com/c1t1zen1/RUSTUP/tree/main/labs/lab5-swarm-mode"><span class="kind">Lab 5 · in class · 30 min</span><b>Swarm Mode</b><span>Five steps, nine tests: five Robbies, five rooms, and five different ways to split the work across threads.</span></a>
+    <a class="mat" href="https://github.com/c1t1zen1/RUSTUP/tree/main/homework/hw5-swarm-sim"><span class="kind">Homework 5 · due Session 6</span><b>Swarm Sim</b><span>Read a JSON floor plan with serde, send every cleaning bot out on its own thread, and write the report back as JSON. Your own tests count too. Scored out of 10.</span></a>
+  </div>
+
+  <h2>Topics</h2>
+  <ul id="topics" class="muted"></ul>
+
+  <div class="cta-row" style="margin-block:32px 48px">
+    <a class="btn" href="../../index.html">Back to the course map</a>
+  </div>
+</main>
+<script>
+window.ROBBIE_PAGE = {
+  "greeting": "Welcome to Session 5. I'm 72% rust and things keep falling off, so I built a swarm. Today you learn to run one safely.",
+  "tips": [
+    "Do the lab steps in order. Step 2's hang is a trap on purpose; read the README rule before you start.",
+    "If you remember one thing: Box owns, Rc shares, RefCell changes, A means Atomic."
+  ],
+  "eli5": [
+    "Today you get many robots working at the same time, and Rust makes sure they never grab the same tool at once."
+  ],
+  "hype": [
+    "Fearless concurrency is the thing Rust is famous for. Today it's yours."
+  ]
+};
+</script>
+<script src="../../assets/js/course.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="../../assets/js/site.js"></script>
+<script>
+(function(){ var s = window.RUSTUP && RUSTUP.sessions[4]; var ul = document.getElementById("topics");
+  if (s && ul) ul.innerHTML = s.topics.map(function(t){ return "<li>" + t + "</li>"; }).join(""); })();
+</script>
+<script src="../../assets/js/robbie.js"></script>
+<script type="module" src="../../assets/js/robbie3d.js"></script>
+</body>
+</html>

@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Session 3 Teacher Notebook</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=IBM+Plex+Sans:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../docs/assets/css/site.css">
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/" } }</script>
+</head>
+<body data-base="../../docs" data-page="s3-notebook" data-rust="2">
+<header class="topbar" data-crumbs='[{"t": "Course map", "href": "../../docs/index.html"}, {"t": "Session 3", "href": "../../docs/sessions/s3/index.html"}, {"t": "Teacher&#39;s Notebook"}]'></header>
+
+<main class="read">
+  <div class="doc-head">
+    <p class="eyebrow">Teacher's Notebook · Session 3</p>
+    <h1>Building Blocks</h1>
+    <div class="meta"><span>Session length: 2.5 hours</span><span>Prep: 25 minutes</span><span>Contains all answers</span></div>
+  </div>
+
+  <nav class="toc" aria-label="Contents"><b>Contents</b><ol>
+    <li><a href="#goals">Learning goals</a></li><li><a href="#prep">Before class</a></li><li><a href="#plan">Run of show</a></li>
+    <li><a href="#deep">Deeper notes by topic</a></li><li><a href="#mistakes">Mistakes to expect</a></li><li><a href="#lab">Lab solution</a></li>
+    <li><a href="#hw">Homework solution and grading</a></li><li><a href="#key">Quiz 3 answer key</a></li><li><a href="#cp">Checkpoint 1 answer key</a></li>
+    <li><a href="#extend">Extensions</a></li>
+  </ol></nav>
+
+  <h2 id="goals">Learning goals</h2>
+  <p>By the end of Session 3 a student can:</p>
+  <ol>
+    <li>Define a struct, build one, and give it methods with <code>&amp;self</code>, <code>&amp;mut self</code> and an associated <code>new</code>.</li>
+    <li>Model a fixed set of choices with an enum, including variants that carry data.</li>
+    <li>Write an exhaustive <code>match</code> with ranges, <code>_</code>, bindings and guards, and use <code>if let</code> and <code>let ... else</code>.</li>
+    <li>Choose between <code>Option</code> and <code>Result</code>, and open them with <code>match</code>, <code>unwrap_or</code>, <code>map</code> and <code>ok_or</code>.</li>
+    <li>Write a custom error enum with <code>Display</code>, and propagate errors with <code>?</code> and <code>map_err</code>.</li>
+    <li>Split a crate into modules and control what's visible with <code>pub</code>.</li>
+  </ol>
+
+  <h2 id="prep">Before class</h2>
+  <ul>
+    <li>Grade Homework 2 and find a <code>redact</code> that handles an empty secret, and one that doesn't. The empty-secret bug is the perfect lead-in to today.</li>
+    <li>Run <code>cargo test</code> in <code>labs/lab3-command-parser</code> once so you've seen the nine failing tests and the <code>todo!</code> messages.</li>
+    <li>Print or share Checkpoint 1 (<code>docs/sessions/s3/checkpoint.html</code>). It's due before Session 4.</li>
+    <li>Have the AND (struct) vs OR (enum) picture ready on the whiteboard. You'll point at it all session.</li>
+  </ul>
+
+  <h2 id="plan">Run of show</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Time</th><th>Slides</th><th>Do</th></tr></thead>
+    <tbody>
+      <tr><td>0:00</td><td>1 to 2</td><td>Intro, Robbie's streaks, Homework 2 review (15 minutes).</td></tr>
+      <tr><td>0:15</td><td>3 to 6</td><td>Tuples vs structs, building and printing, <code>impl</code>, struct shortcuts.</td></tr>
+      <tr><td>0:35</td><td>7 to 11</td><td>Plain enums, enums with data, <code>match</code> (run the E0004 example and fix it live), patterns, <code>if let</code>.</td></tr>
+      <tr><td>1:00</td><td></td><td>Break, 10 minutes.</td></tr>
+      <tr><td>1:10</td><td>12 to 18</td><td><code>Option</code>, the E0308 box mistake, <code>Result</code>, custom errors, <code>?</code> before and after, <code>?</code> in main, choosing between unwrap, expect, ? and match.</td></tr>
+      <tr><td>1:30</td><td>19 to 21</td><td>Modules, privacy, error field guide.</td></tr>
+      <tr><td>1:40</td><td>22</td><td>Lab: Robbie's Command Parser, 35 minutes. Leave slide 21 up on a second screen.</td></tr>
+      <tr><td>2:15</td><td>23 to 24</td><td>Quiz 3 (15 minutes), Homework 3 and Checkpoint 1 kickoff, recap.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2 id="deep">Deeper notes by topic</h2>
+  <h3>Structs</h3>
+  <p>Mutability is a property of the binding, not of fields. Students from C# or Java will ask for read-only fields; the Rust answer is private fields plus methods, which comes at the end of the session. <code>#[derive(Debug)]</code> is a macro generating a trait impl; don't go deeper than "it writes the printing code" until Session 4's traits.</p>
+  <h3>Methods and ownership</h3>
+  <p>Hammer the link to Session 2: the receiver is just the first parameter, with the same three ownership choices. A method taking <code>self</code> consumes the value, which is why <code>String::into_bytes(self)</code> leaves the string unusable. Rust has no constructors; <code>new</code> is a naming convention, and clippy's <code>new_without_default</code> lint is why the lab includes a <code>Default</code> impl.</p>
+  <h3>Enums and match</h3>
+  <p>Enums with data are sum types. Show how a C programmer would do it (a tag plus a union, with nothing stopping you reading the wrong field) and how a Python programmer would (a dict with a "type" key). <code>match</code> makes the wrong-field mistake impossible. Arms are checked top to bottom, so a broad pattern before a narrow one triggers an "unreachable pattern" warning; demo it by swapping two arms in the battery example.</p>
+  <h3>Option and Result</h3>
+  <p>Both are ordinary enums in the standard library, with nothing special about them except that the prelude imports them. A good mental model: <code>Option&lt;T&gt;</code> is <code>Result&lt;T, ()&gt;</code> with nicer names. <code>ok_or</code> converts one to the other; <code>.ok()</code> goes back.</p>
+  <h3>The ? operator</h3>
+  <p><code>?</code> is roughly <code>match x { Ok(v) =&gt; v, Err(e) =&gt; return Err(From::from(e)) }</code>. The <code>From</code> call is what lets one function mix error types once you implement conversions, which we save for Session 5. For now, students convert explicitly with <code>map_err</code>, which keeps it visible. Clippy's <code>question_mark</code> lint fires on the "before" example: show that live, students love it.</p>
+  <h3>Modules</h3>
+  <p>Draw the module tree, not the file tree. <code>mod robot;</code> declares the module; the file is just where its body lives. <code>crate::</code> starts from the root, <code>super::</code> from the parent. Visibility is per item and per field. Skip <code>pub(crate)</code> unless asked.</p>
+
+  <h2 id="mistakes">Mistakes to expect</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>You'll see</th><th>What's going on</th><th>Nudge</th></tr></thead>
+    <tbody>
+      <tr><td><code>Robot.new()</code> (E0423)</td><td>Dot instead of <code>::</code> for an associated function</td><td>"Is there a value yet? Then it's the type, so <code>::</code>."</td></tr>
+      <tr><td>E0004 in <code>apply</code></td><td>Forgot a command, often <code>Report</code></td><td>"Read the error. It lists the missing pattern for you."</td></tr>
+      <tr><td>E0308 with <code>Option&lt;u32&gt;</code></td><td>Used the box as the present</td><td>"What type does <code>parse().ok()</code> give you? How do you get inside?"</td></tr>
+      <tr><td>E0277 on <code>?</code></td><td><code>?</code> in a function returning <code>()</code> or <code>String</code></td><td>Point at the return type. In the lab, <code>?</code> belongs in <code>parse</code>, which returns <code>Option</code>.</td></tr>
+      <tr><td>Robbie moves, then complains about battery</td><td>Changed position before checking</td><td>"Check first, then change. A refused command changes nothing."</td></tr>
+      <tr><td>"FORWARD 3" fails</td><td>Matched the word without lowercasing</td><td><code>word.to_lowercase().as_str()</code> in the <code>match</code>.</td></tr>
+      <tr><td>Off-by-one line numbers in the homework</td><td><code>enumerate</code> counts from 0</td><td>"What number does a person call the first line?"</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2 id="lab">Lab solution: Robbie's Command Parser</h2>
+  <p>The full file is <code>teacher/s3/lab3-solution-lib.rs</code>; drop it in as <code>labs/lab3-command-parser/src/lib.rs</code> and all nine tests pass, with clippy and fmt clean.</p>
+  <pre data-lang="rust" data-title="teacher/s3/lab3-solution-lib.rs">//! Lab 3 reference solution: Robbie's Command Parser.
+//! Drop this in as labs/lab3-command-parser/src/lib.rs to check the tests.
+
+/// Which way Robbie is facing. North is up the grid (y grows).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Direction {
+    North,
+    East,
+    South,
+    West,
+}
+
+impl Direction {
+    /// Step 2: a quarter turn anticlockwise.
+    pub fn turn_left(self) -&gt; Direction {
+        match self {
+            Direction::North =&gt; Direction::West,
+            Direction::West =&gt; Direction::South,
+            Direction::South =&gt; Direction::East,
+            Direction::East =&gt; Direction::North,
+        }
+    }
+
+    /// Step 2: a quarter turn clockwise.
+    pub fn turn_right(self) -&gt; Direction {
+        match self {
+            Direction::North =&gt; Direction::East,
+            Direction::East =&gt; Direction::South,
+            Direction::South =&gt; Direction::West,
+            Direction::West =&gt; Direction::North,
+        }
+    }
+}
+
+/// Everything Robbie understands.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Command {
+    Forward(u32),
+    Left,
+    Right,
+    Say(String),
+    Charge,
+    Report,
+}
+
+/// Robbie's position, heading and battery.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Robot {
+    pub x: i32,
+    pub y: i32,
+    pub facing: Direction,
+    pub battery: u32,
+}
+
+impl Robot {
+    /// Step 1: a fresh Robbie at (0, 0), facing North, battery 100.
+    pub fn new() -&gt; Robot {
+        Robot {
+            x: 0,
+            y: 0,
+            facing: Direction::North,
+            battery: 100,
+        }
+    }
+
+    /// Step 4: carry out one command and say what happened.
+    pub fn apply(&amp;mut self, cmd: Command) -&gt; String {
+        match cmd {
+            Command::Forward(steps) =&gt; {
+                if steps &gt; self.battery {
+                    return format!("Not enough battery to move {steps}");
+                }
+                let n = steps as i32;
+                match self.facing {
+                    Direction::North =&gt; self.y += n,
+                    Direction::South =&gt; self.y -= n,
+                    Direction::East =&gt; self.x += n,
+                    Direction::West =&gt; self.x -= n,
+                }
+                self.battery -= steps;
+                format!("Moved {steps}")
+            }
+            Command::Left =&gt; {
+                self.facing = self.facing.turn_left();
+                format!("Turned left, now facing {:?}", self.facing)
+            }
+            Command::Right =&gt; {
+                self.facing = self.facing.turn_right();
+                format!("Turned right, now facing {:?}", self.facing)
+            }
+            Command::Say(text) =&gt; format!("Robbie says: {text}"),
+            Command::Charge =&gt; {
+                self.battery = 100;
+                String::from("Charged to 100%")
+            }
+            Command::Report =&gt; self.status(),
+        }
+    }
+
+    /// Step 5: one line about where Robbie is.
+    pub fn status(&amp;self) -&gt; String {
+        format!(
+            "({}, {}) facing {:?}, battery {}%",
+            self.x, self.y, self.facing, self.battery
+        )
+    }
+}
+
+impl Default for Robot {
+    fn default() -&gt; Self {
+        Robot::new()
+    }
+}
+
+/// Step 3: turn a typed line into a Command, or None if it makes no sense.
+pub fn parse(line: &amp;str) -&gt; Option&lt;Command&gt; {
+    let line = line.trim();
+    let (word, rest) = match line.split_once(' ') {
+        Some((w, r)) =&gt; (w, r.trim()),
+        None =&gt; (line, ""),
+    };
+    match word.to_lowercase().as_str() {
+        "forward" =&gt; {
+            let steps: u32 = rest.parse().ok()?;
+            Some(Command::Forward(steps))
+        }
+        "left" =&gt; Some(Command::Left),
+        "right" =&gt; Some(Command::Right),
+        "say" if !rest.is_empty() =&gt; Some(Command::Say(rest.to_string())),
+        "charge" =&gt; Some(Command::Charge),
+        "report" =&gt; Some(Command::Report),
+        _ =&gt; None,
+    }
+}
+</pre>
+  <p>Things to praise when you walk the room: a <code>match</code> on <code>word.to_lowercase().as_str()</code>; <code>rest.parse().ok()?</code>; a guard like <code>"say" if !rest.is_empty()</code>; checking the battery before moving. Things to gently redirect: an <code>if</code>/<code>else if</code> chain on strings, and <code>.unwrap()</code> on the parsed number (try <code>forward three</code> in <code>cargo run</code> to show why).</p>
+
+  <h2 id="hw">Homework 3 solution and grading</h2>
+  <p>Reference files are in <code>teacher/s3/hw3-solution/</code>. Copy <code>lib.rs</code>, <code>parse.rs</code> and <code>robot.rs</code> into a student's <code>src/</code> to check the tests, or read the key parts here.</p>
+  <pre data-lang="rust" data-title="parse.rs: parse_line and its helper">pub fn parse_line(line: &amp;str) -&gt; Result&lt;Command, ParseError&gt; {
+    let line = line.trim();
+    if line.is_empty() {
+        return Err(ParseError::Empty);
+    }
+
+fn distance(rest: &amp;str) -&gt; Result&lt;u32, ParseError&gt; {
+    if rest.is_empty() {
+        return Err(ParseError::MissingArgument("distance"));
+    }
+    rest.parse()
+        .map_err(|_| ParseError::BadNumber(rest.to_string()))
+}
+</pre>
+  <pre data-lang="rust" data-title="robot.rs: apply and roll">    /// Carry out one command. Say and Report return a line to print; the rest return None.
+    /// A refused move changes nothing.
+    pub fn apply(&amp;mut self, cmd: &amp;Command) -&gt; Result&lt;Option&lt;String&gt;, RobotError&gt; {
+        match cmd {
+            Command::Forward(n) =&gt; self.roll(*n, 1).map(|_| None),
+            Command::Back(n) =&gt; self.roll(*n, -1).map(|_| None),
+            Command::Left =&gt; {
+                self.facing = self.facing.turn_left();
+                Ok(None)
+            }
+            Command::Right =&gt; {
+                self.facing = self.facing.turn_right();
+                Ok(None)
+            }
+            Command::Say(text) =&gt; Ok(Some(format!("Robbie says: {text}"))),
+            Command::Charge =&gt; {
+                self.battery = 100;
+                Ok(None)
+            }
+            Command::Report =&gt; Ok(Some(self.status())),
+        }
+    }
+
+    fn roll(&amp;mut self, n: u32, sign: i32) -&gt; Result&lt;(), RobotError&gt; {
+        if n &gt; self.battery {
+            return Err(RobotError::LowBattery {
+                needed: n,
+                left: self.battery,
+            });
+        }
+        let (dx, dy) = self.facing.step();
+        let dist = n as i32 * sign;
+        let (x, y) = (self.x + dx * dist, self.y + dy * dist);
+        if x.abs() &gt; GRID_LIMIT || y.abs() &gt; GRID_LIMIT {
+            return Err(RobotError::OutOfBounds { x, y });
+        }
+        self.x = x;
+        self.y = y;
+        self.battery -= n;
+        Ok(())
+    }</pre>
+  <pre data-lang="rust" data-title="lib.rs: run_script">/// Run a whole script on a fresh Robbie. Returns where he ended up and everything he said,
+/// or the first error, which stops the script.
+pub fn run_script(script: &amp;str) -&gt; Result&lt;(Robot, Vec&lt;String&gt;), ScriptError&gt; {
+    let mut robbie = Robot::new();
+    let mut said = Vec::new();
+    for (i, text) in script.lines().enumerate() {
+        let line = i + 1;
+        let trimmed = text.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+        let cmd = parse_line(trimmed).map_err(|error| ScriptError::Parse { line, error })?;
+        let out = robbie
+            .apply(&amp;cmd)
+            .map_err(|error| ScriptError::Robot { line, error })?;
+        if let Some(out) = out {
+            said.push(out);
+        }
+    }
+    Ok((robbie, said))
+}
+</pre>
+  <h3>Grading, out of 10</h3>
+  <pre data-lang="sh" data-title="terminal">cd homework/hw3-command-language            # in the student's copy
+cp ../../teacher/grading/hw3-hidden-tests.rs tests/hidden.rs
+cargo build                                  # 2 points
+cargo test --test visible                    # 3 points (8 tests)
+cargo test --test hidden                     # 3 points (9 tests: 1/3 per 3 passing)
+cargo clippy -- -D warnings                  # 1 point
+cargo fmt --check                            # 1 point</pre>
+  <p>The hidden tests check: keywords in any case with extra spaces; <code>-1</code> and <code>2.5</code> as bad numbers; <code>say</code> with only spaces; zero distance; the grid edge at 10 versus 11, forwards and backwards; battery exactly used up; battery checked before bounds; comments, blank lines and line numbers; empty and comment-only scripts; and the first error stopping the script.</p>
+
+  <h2 id="key">Quiz 3 answer key</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>#</th><th>Answer</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><b>struct</b></td><td>A struct is AND: every field is there. An enum is OR: exactly one variant.</td></tr>
+      <tr><td>2</td><td><b>fn charge(&amp;mut self)</b></td><td>&amp;mut self borrows Robbie mutably. &amp;self can only read, self would use him up, and no self means it isn't a method at all.</td></tr>
+      <tr><td>3</td><td><b>Robot::new("Robbie")</b></td><td>No self parameter means it's an associated function, called on the type with ::. A dot is for methods on a value.</td></tr>
+      <tr><td>4</td><td><b>It doesn't compile: Amber isn't covered</b></td><td>match must be exhaustive. Missing a variant is error E0004, caught before the program ever runs.</td></tr>
+      <tr><td>5</td><td><b>7</b></td><td>unwrap_or gives the value inside Some, or the default when it's None. Here it's None, so 7.</td></tr>
+      <tr><td>6</td><td><b>Option&lt;T&gt;</b></td><td>Option&lt;T&gt; is Some(value) or None. Rust has no null, so a missing value can't sneak in unannounced.</td></tr>
+      <tr><td>7</td><td><b>Err(...) with a ParseIntError</b></td><td>parse returns a Result. Text that isn't a number gives Err, and nothing panics unless you unwrap it.</td></tr>
+      <tr><td>8</td><td><b>Returns that Err from the function right away</b></td><td>? is the hot potato: Ok gets unwrapped, Err gets returned to the caller immediately.</td></tr>
+      <tr><td>9</td><td><b>No: main returns (), so ? has nowhere to send an error</b></td><td>? only works in a function that returns Result or Option. This is error E0277. Make main return Result, or use match.</td></tr>
+      <tr><td>10</td><td><b>Command::Forward(3)</b></td><td>A tuple-like variant is built like a function call: Command::Forward(3).</td></tr>
+      <tr><td>11</td><td><b>pub</b></td><td>Everything is private by default. pub on the struct doesn't open its fields: each field needs its own pub.</td></tr>
+      <tr><td>12</td><td><b>you only care about one pattern</b></td><td>if let is a one-armed match. For every variant use match; for looping, while let.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2 id="cp">Checkpoint 1 answer key</h2>
+  <p>Checkpoint 1 isn't graded. Look at which session's questions the room misses most, and spend the first ten minutes of Session 4 there. Questions 6 to 10 (ownership) are usually the weakest.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>#</th><th>Answer</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><b>cargo new robbie</b></td><td>cargo new makes the folder, the manifest, a hello-world main.rs and a git repo. (Session 1)</td></tr>
+      <tr><td>2</td><td><b>No: x isn't mut</b></td><td>Variables are immutable by default. let mut x = 5; would fix it. (Session 1)</td></tr>
+      <tr><td>3</td><td><b>6</b></td><td>A block is an expression: its last line, with no semicolon, is its value. (Session 1)</td></tr>
+      <tr><td>4</td><td><b>for n in 1..=10</b></td><td>1..10 stops before 10. 1..=10 includes it. (Session 1)</td></tr>
+      <tr><td>5</td><td><b>Fine: the second let is a new variable that shadows the first</b></td><td>Shadowing makes a brand new variable with the same name, so its type can differ. (Session 1)</td></tr>
+      <tr><td>6</td><td><b>Error E0382: a was moved into b</b></td><td>A String owns heap memory, so let b = a moves it. Using a afterwards is E0382. (Session 2)</td></tr>
+      <tr><td>7</td><td><b>(i32, bool)</b></td><td>A tuple of Copy types is Copy. The others own heap memory, so they move. (Session 2)</td></tr>
+      <tr><td>8</td><td><b>any number of &amp; or exactly one &amp;mut, never both</b></td><td>Many readers or one writer. That one rule rules out data races. (Session 2)</td></tr>
+      <tr><td>9</td><td><b>&amp;str</b></td><td>&amp;str accepts a &amp;String, a slice or a literal, and doesn't take ownership. (Session 2)</td></tr>
+      <tr><td>10</td><td><b>rob or "rob"</b></td><td>Slices take byte positions, start included and end excluded: 0, 1 and 2. (Session 2)</td></tr>
+      <tr><td>11</td><td><b>&amp;self</b></td><td>&amp;self looks, &amp;mut self touches, self takes. (Session 3)</td></tr>
+      <tr><td>12</td><td><b>Result&lt;T, E&gt;</b></td><td>Result carries the reason in Err. Option only says "nothing". (Session 3)</td></tr>
+      <tr><td>13</td><td><b>No: 101 to 255 aren't covered</b></td><td>A u8 goes up to 255, so the match isn't exhaustive (E0004). Add a _ arm. (Session 3)</td></tr>
+      <tr><td>14</td><td><b>Runs the linter and treats every warning as an error</b></td><td>Clippy finds code that works but could be clearer or faster. -D warnings makes the build fail until it's clean, which is how homework is graded. (Session 1)</td></tr>
+      <tr><td>15</td><td><b>let n: u32 = s.parse()?;</b></td><td>parse gives a Result; ? unwraps Ok or returns the Err from load. (Session 3)</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2 id="extend">Extensions for fast students</h2>
+  <ul>
+    <li>Lab: add <code>Back(u32)</code>, then <code>Spin</code>, which turns right four times and says "Wheee".</li>
+    <li>Homework: add <code>repeat 3 forward 1</code>, which needs <code>parse_line</code> to call itself on the rest of the line. What should the error be for <code>repeat 3 dance</code>?</li>
+    <li>Make <code>main</code> read a script file named on the command line with <code>std::env::args</code> and <code>std::fs::read_to_string</code>, returning <code>Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt;</code> so <code>?</code> works for both I/O and script errors.</li>
+    <li>Give <code>Robot</code> a <code>rust: u8</code> field that goes up by 1 every time he's in the rain (a new <code>Command::Weather</code>), and refuses to move above 95. Ask: should that be a new <code>RobotError</code> variant?</li>
+  </ul>
+
+  <footer class="site"><a href="../../docs/sessions/s3/index.html">Session 3 hub</a> · <a href="../../docs/sessions/s3/presentation.html">Slides</a> · <a href="../../docs/sessions/s3/handbook.html">Handbook</a></footer>
+</main>
+
+<script>
+window.ROBBIE_PAGE = {
+  "greeting": "Teacher's notebook for Session 3. All the answers are here, so keep it off the projector.",
+  "tips": [
+    "The E0004 demo lands best when you fix it live and then add a new variant.",
+    "Checkpoint 1 tells you what to reteach at the start of Session 4."
+  ],
+  "eli5": [
+    "Structs are AND, enums are OR. Draw it once and point at it all day."
+  ],
+  "hype": [
+    "Session 3 is where students start building things they're proud of."
+  ]
+};
+</script>
+<script src="../../docs/assets/js/course.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="../../docs/assets/js/site.js"></script>
+<script src="../../docs/assets/js/robbie.js"></script>
+<script type="module" src="../../docs/assets/js/robbie3d.js"></script>
+</body>
+</html>

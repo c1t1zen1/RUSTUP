@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Session 5 Teacher Notebook</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=IBM+Plex+Sans:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../docs/assets/css/site.css">
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/" } }</script>
+</head>
+<body data-base="../../docs" data-page="s5-notebook" data-rust="4">
+<header class="topbar" data-crumbs='[{"t": "Course map", "href": "../../docs/index.html"}, {"t": "Session 5", "href": "../../docs/sessions/s5/index.html"}, {"t": "Teacher&#39;s Notebook"}]'></header>
+
+<main class="read">
+  <div class="doc-head">
+    <p class="eyebrow">Teacher's Notebook · Session 5</p>
+    <h1>Many Robbies at Once</h1>
+    <div class="meta"><span>Session length: 2.5 hours</span><span>Prep: 30 minutes</span><span>Contains all answers</span></div>
+  </div>
+
+  <nav class="toc" aria-label="Contents"><b>Contents</b><ol>
+    <li><a href="#goals">Learning goals</a></li><li><a href="#prep">Before class</a></li><li><a href="#plan">Run of show</a></li>
+    <li><a href="#deep">Deeper notes by topic</a></li><li><a href="#mistakes">Mistakes to expect</a></li><li><a href="#lab">Lab solution</a></li>
+    <li><a href="#hw">Homework solution and grading</a></li><li><a href="#key">Quiz 5 answer key</a></li><li><a href="#cp2">Checkpoint 2 answer key</a></li>
+    <li><a href="#extend">Extensions</a></li>
+  </ol></nav>
+
+  <h2 id="goals">Learning goals</h2>
+  <p>By the end of Session 5 a student can:</p>
+  <ol>
+    <li>Choose between <code>Box</code>, <code>Rc</code>, <code>RefCell</code>, <code>Arc</code> and <code>Mutex</code> from three questions: how many owners, how many threads, does anyone change it.</li>
+    <li>Start threads with <code>move</code> closures, join them, and use their results.</li>
+    <li>Pass results through <code>mpsc</code> channels, and explain why a receiver loop can hang.</li>
+    <li>Share changing state with <code>Arc&lt;Mutex&lt;T&gt;&gt;</code>, keeping locks short.</li>
+    <li>Read an E0277 about <code>Send</code> and fix it.</li>
+    <li>Split work with <code>thread::scope</code>.</li>
+    <li>Write async code with tokio's <code>join!</code> and <code>spawn</code>, and say when async beats threads.</li>
+    <li>Write unit and integration tests, and read and write JSON with serde.</li>
+  </ol>
+
+  <h2 id="prep">Before class</h2>
+  <ul>
+    <li>Grade Homework 4. Find one <code>park</code> that checked duplicates before the budget and one that changed the garage before refusing.</li>
+    <li>Run <code>cargo test</code> in <code>labs/lab5-swarm-mode</code> once, and <code>cargo build</code> in <code>homework/hw5-swarm-sim</code>, so serde and serde_json are downloaded before 20 laptops try at once on the venue Wi-Fi.</li>
+    <li>Press Run on the tokio slides (15 to 17) on the Playground. tokio is preinstalled there, but check the venue network allows it.</li>
+    <li>Draw an <code>Arc&lt;Mutex&lt;u32&gt;&gt;</code> as nested boxes on the board, outside in. Slides 8 and 12 and lab step 5 all use the picture.</li>
+  </ul>
+
+  <h2 id="plan">Run of show</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Time</th><th>Slides</th><th>Do</th></tr></thead>
+    <tbody>
+      <tr><td>0:00</td><td>1 to 3</td><td>Intro, Robbie at 72% rust, Homework 4 review (10 minutes), the big idea: sharing is the hard part.</td></tr>
+      <tr><td>0:10</td><td>4 to 8</td><td><code>Box</code>, the E0072 recursive-type demo, <code>Rc</code>, <code>RefCell</code> and its run-time panic, the pointer picker.</td></tr>
+      <tr><td>0:30</td><td>9 to 11</td><td><code>thread::spawn</code> (press Run twice), the E0373 <code>move</code> demo, channels.</td></tr>
+      <tr><td>0:50</td><td>12 to 14</td><td><code>Arc&lt;Mutex&gt;</code>, <code>Send</code> and <code>Sync</code> with the E0277 demo, scoped threads.</td></tr>
+      <tr><td>1:05</td><td></td><td>Break, 10 minutes.</td></tr>
+      <tr><td>1:15</td><td>15 to 17</td><td>Futures are lazy, <code>tokio::join!</code>, <code>tokio::spawn</code>, threads versus async.</td></tr>
+      <tr><td>1:30</td><td>18 to 21</td><td>Unit tests, integration and doc tests, serde. Error field guide.</td></tr>
+      <tr><td>1:45</td><td>22</td><td>Lab: Swarm Mode, 30 minutes. Leave slide 8 up on a second screen.</td></tr>
+      <tr><td>2:15</td><td>23 to 25</td><td>Quiz 5 (10 minutes), Homework 5 and Checkpoint 2 kickoff, recap.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2 id="deep">Deeper notes by topic</h2>
+  <h3>Smart pointers</h3>
+  <p>Frame every pointer as an answer to an ownership question students already understand. <code>Box</code> is ownership with the value on the heap. <code>Rc</code> relaxes "one owner". <code>RefCell</code> relaxes "checked at compile time". Don't go deep on <code>Weak</code>, <code>Cell</code> or <code>Deref</code>; mention <code>Weak</code> only if someone asks about cycles (a parent and child holding <code>Rc</code>s to each other never free).</p>
+  <h3>Threads</h3>
+  <p>Run the <code>thread_spawn</code> slide twice so the room sees the order change. That single observation explains most of the homework design: the report sorts by name and leaves out who cleaned which tile. <code>main</code> returning ends the process, unfinished threads included; that's why we join.</p>
+  <h3>Channels versus shared state</h3>
+  <p>Teach channels first. They need no locks, and <code>send</code> moving the value is ownership doing the safety work. Shared state with <code>Arc&lt;Mutex&gt;</code> is for when the threads really must see one changing thing. Rust prevents data races at compile time; it does not prevent deadlocks or race conditions in logic (which bot got the last unit of dirt). Make that distinction explicit, because "fearless" can be oversold.</p>
+  <h3>Send and Sync</h3>
+  <p>Students only need to read the error, not implement the traits. The first line of the E0277 says "cannot be sent between threads safely". Auto traits: a struct is <code>Send</code> when all its fields are. <code>unsafe impl Send</code> exists and comes back in Session 6 as an example of what <code>unsafe</code> promises.</p>
+  <h3>Async</h3>
+  <p>Twenty minutes is enough for the model, not the details. The three things that matter: futures are lazy (like Session 4's iterators), a runtime is needed and tokio is the default, and blocking calls inside async code stall everything on that worker. Skip <code>Pin</code>, <code>select!</code> and async traits. The final project's async stretch goal is optional.</p>
+  <h3>Testing and serde</h3>
+  <p>Students have run tests for four sessions; today they write them. Push for test names that state rules. Homework 5 is the first assignment that grades the student's own tests. For serde, show the missing-field error: it's the moment people see why typed deserialization beats picking fields out of a map.</p>
+
+  <h2 id="mistakes">Mistakes to expect</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>You'll see</th><th>What's going on</th><th>Nudge</th></tr></thead>
+    <tbody>
+      <tr><td>Lab step 2 test hangs forever</td><td>The original <code>tx</code> is still alive in the function</td><td>"How many senders are there? How many have you dropped?"</td></tr>
+      <tr><td>Threads joined inside the spawn loop</td><td>Each thread finishes before the next starts, so it's serial</td><td>Collect the handles into a Vec first, then join</td></tr>
+      <tr><td><code>Rc</code> in step 3 (E0277)</td><td><code>Rc</code> isn't <code>Send</code></td><td>"What does the A in Arc stand for?"</td></tr>
+      <tr><td>Lab step 5 workers do one job each, then stop</td><td><code>recv()</code> outside a loop</td><td>Loop until <code>recv()</code> returns <code>Err</code></td></tr>
+      <tr><td>Lab step 5 is serial again</td><td>The job queue's lock is held while the job runs, often via <code>while let Ok(job) = rx.lock().unwrap().recv()</code>, which keeps the guard alive for the whole loop body</td><td>Take the job in its own <code>let</code> statement so the guard drops at the semicolon</td></tr>
+      <tr><td><code>scoped_sum</code> panics with "chunk size must be non-zero"</td><td><code>chunks(0)</code> on an empty slice or <code>parts</code> of 0</td><td><code>.max(1)</code> on the chunk size</td></tr>
+      <tr><td>Homework: the floor is locked for a whole walk</td><td>The guard was taken before the route loop</td><td>Lock once per tile, inside a small helper</td></tr>
+      <tr><td>Homework: <code>OffFloor</code> never fires for a too-big y</td><td>Only x was checked against the width</td><td>"How tall is the floor?"</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2 id="lab">Lab solution: Swarm Mode</h2>
+  <p>The full file is <code>teacher/s5/lab5-solution-lib.rs</code>; drop it in as <code>labs/lab5-swarm-mode/src/lib.rs</code> and all nine tests pass, with clippy and fmt clean.</p>
+  <pre data-lang="rust" data-title="teacher/s5/lab5-solution-lib.rs">//! Lab 5: Swarm Mode. Teacher's solution.
+use std::sync::mpsc;
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+/// How much dust is in a room. Pretend it takes a scanner a while.
+/// Given to you: it's the same answer every time for the same room.
+pub fn dust_in(room: &amp;str) -&gt; u32 {
+    room.bytes().map(u32::from).sum::&lt;u32&gt;() % 50 + room.len() as u32
+}
+
+/// Step 1. One thread per room, each running `dust_in`. Returns the readings
+/// in the same order as `rooms`, whichever thread finishes first.
+pub fn scan_rooms(rooms: Vec&lt;String&gt;) -&gt; Vec&lt;u32&gt; {
+    let handles: Vec&lt;_&gt; = rooms
+        .into_iter()
+        .map(|room| thread::spawn(move || dust_in(&amp;room)))
+        .collect();
+    handles.into_iter().map(|h| h.join().unwrap()).collect()
+}
+
+/// Step 2. One thread per room again, but each one sends its reading down a
+/// channel, and the caller adds up whatever arrives.
+pub fn total_dust(rooms: Vec&lt;String&gt;) -&gt; u32 {
+    let (tx, rx) = mpsc::channel();
+    for room in rooms {
+        let tx = tx.clone();
+        thread::spawn(move || tx.send(dust_in(&amp;room)).unwrap());
+    }
+    drop(tx);
+    rx.iter().sum()
+}
+
+/// Step 3. `bots` threads share one squeak counter. Each bot takes
+/// `steps_each` steps and squeaks on every second step (steps 2, 4, 6...).
+/// Returns the final count.
+pub fn count_squeaks(bots: usize, steps_each: u32) -&gt; u32 {
+    let squeaks = Arc::new(Mutex::new(0));
+    let mut handles = Vec::new();
+    for _ in 0..bots {
+        let squeaks = Arc::clone(&amp;squeaks);
+        handles.push(thread::spawn(move || {
+            for step in 1..=steps_each {
+                if step % 2 == 0 {
+                    *squeaks.lock().unwrap() += 1;
+                }
+            }
+        }));
+    }
+    for h in handles {
+        h.join().unwrap();
+    }
+    *squeaks.lock().unwrap()
+}
+
+/// Step 4. Split `readings` into `parts` chunks, add each chunk on its own
+/// scoped thread, and return the grand total. `parts` of 0 counts as 1.
+pub fn scoped_sum(readings: &amp;[u32], parts: usize) -&gt; u32 {
+    let size = readings.len().div_ceil(parts.max(1)).max(1);
+    thread::scope(|s| {
+        let handles: Vec&lt;_&gt; = readings
+            .chunks(size)
+            .map(|chunk| s.spawn(move || chunk.iter().sum::&lt;u32&gt;()))
+            .collect();
+        handles.into_iter().map(|h| h.join().unwrap()).sum()
+    })
+}
+
+/// One cleaning job for the swarm.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Job {
+    pub id: u32,
+    pub room: String,
+}
+
+/// Step 5. A worker pool. Start `workers` threads (0 counts as 1) that share
+/// one job queue. Each worker takes jobs until the queue is empty and reports
+/// `(id, "room: dust")` for each. Returns every report, sorted by id.
+pub fn run_jobs(jobs: Vec&lt;Job&gt;, workers: usize) -&gt; Vec&lt;(u32, String)&gt; {
+    let (job_tx, job_rx) = mpsc::channel::&lt;Job&gt;();
+    let job_rx = Arc::new(Mutex::new(job_rx));
+    let (done_tx, done_rx) = mpsc::channel();
+
+    let mut handles = Vec::new();
+    for _ in 0..workers.max(1) {
+        let job_rx = Arc::clone(&amp;job_rx);
+        let done_tx = done_tx.clone();
+        handles.push(thread::spawn(move || {
+            loop {
+                let next = job_rx.lock().unwrap().recv();
+                let Ok(job) = next else { break };
+                let report = format!("{}: {}", job.room, dust_in(&amp;job.room));
+                done_tx.send((job.id, report)).unwrap();
+            }
+        }));
+    }
+    drop(done_tx);
+
+    for job in jobs {
+        job_tx.send(job).unwrap();
+    }
+    drop(job_tx);
+
+    let mut reports: Vec&lt;(u32, String)&gt; = done_rx.iter().collect();
+    for h in handles {
+        h.join().unwrap();
+    }
+    reports.sort();
+    reports
+}
+</pre>
+  <p>Praise: collecting handles before joining; <code>drop(tx)</code> with a comment saying why; the job taken in its own <code>let</code> in step 5 so the lock is released before the work. Redirect: <code>Arc</code> in step 4 (scoped threads can borrow), and sorting step 1's results (the order is the join order, so no sort is needed).</p>
+
+  <h2 id="hw">Homework 5 solution and grading</h2>
+  <p>Reference files are in <code>teacher/s5/hw5-solution/</code>: copy <code>config.rs</code>, <code>sim.rs</code> and <code>lib.rs</code> into a student's <code>src/</code> to check the tests.</p>
+  <pre data-lang="rust" data-title="config.rs: from_json and its checks">impl Config {
+    /// Read a config from JSON text and check it. Checks run in this order,
+    /// and the first problem found is the one returned:
+    /// 1. the JSON parses (otherwise `Parse`)
+    /// 2. the floor has at least one row, and row 0 at least one tile (`EmptyFloor`)
+    /// 3. every row is as long as row 0; the first one that isn't is reported (`RaggedFloor`)
+    /// 4. then each bot in order: a name already used, exactly (`DuplicateBot`),
+    ///    a start outside the floor (`OffFloor`), then the first bad letter in
+    ///    its route (`BadMove`). Letters are uppercase only.
+    pub fn from_json(text: &amp;str) -&gt; Result&lt;Config, SimError&gt; {
+        let config: Config =
+            serde_json::from_str(text).map_err(|e| SimError::Parse(e.to_string()))?;
+        let width = config.floor.first().map_or(0, |row| row.len());
+        if width == 0 {
+            return Err(SimError::EmptyFloor);
+        }
+        if let Some(row) = config.floor.iter().position(|r| r.len() != width) {
+            return Err(SimError::RaggedFloor { row });
+        }
+        let mut seen = HashSet::new();
+        for bot in &amp;config.bots {
+            if !seen.insert(bot.name.as_str()) {
+                return Err(SimError::DuplicateBot(bot.name.clone()));
+            }
+            let (x, y) = bot.start;
+            if x &gt;= width || y &gt;= config.floor.len() {
+                return Err(SimError::OffFloor {
+                    bot: bot.name.clone(),
+                });
+            }
+            if let Some(step) = bot.route.chars().find(|c| !"NESW".contains(*c)) {
+                return Err(SimError::BadMove {
+                    bot: bot.name.clone(),
+                    step,
+                });
+            }
+        }
+        Ok(config)
+    }
+
+    /// The floor's width in tiles.
+    pub fn width(&amp;self) -&gt; usize {
+        self.floor.first().map_or(0, |row| row.len())
+    }
+
+    /// The floor's height in tiles.
+    pub fn height(&amp;self) -&gt; usize {
+        self.floor.len()
+    }
+}</pre>
+  <pre data-lang="rust" data-title="sim.rs: one thread per bot">/// Take one unit of dirt from a tile, if it has any. Returns whether it did.
+fn clean(floor: &amp;Mutex&lt;Vec&lt;Vec&lt;u32&gt;&gt;&gt;, (x, y): (usize, usize)) -&gt; bool {
+    let mut floor = floor.lock().unwrap();
+    let tile = &amp;mut floor[y][x];
+    if *tile &gt; 0 {
+        *tile -= 1;
+        true
+    } else {
+        false
+    }
+}
+
+/// One bot's whole shift. Runs on its own thread.
+fn walk(plan: BotPlan, floor: Arc&lt;Mutex&lt;Vec&lt;Vec&lt;u32&gt;&gt;&gt;&gt;, width: usize, height: usize) -&gt; BotReport {
+    let (mut x, mut y) = plan.start;
+    let mut moves = 0;
+    let mut bumps = 0;
+    clean(&amp;floor, (x, y));
+    for step in plan.route.chars() {
+        let next = match step {
+            'N' if y &gt; 0 =&gt; Some((x, y - 1)),
+            'S' if y + 1 &lt; height =&gt; Some((x, y + 1)),
+            'W' if x &gt; 0 =&gt; Some((x - 1, y)),
+            'E' if x + 1 &lt; width =&gt; Some((x + 1, y)),
+            _ =&gt; None,
+        };
+        match next {
+            Some(tile) =&gt; {
+                (x, y) = tile;
+                moves += 1;
+                clean(&amp;floor, tile);
+            }
+            None =&gt; bumps += 1,
+        }
+    }
+    BotReport {
+        name: plan.name,
+        end: (x, y),
+        moves,
+        bumps,
+    }
+}
+
+/// Run the swarm. Each bot gets its own thread, and they all share one floor
+/// behind an `Arc&lt;Mutex&lt;..&gt;&gt;`.
+///
+/// The rules for each bot:
+/// - it cleans one unit from its start tile, if there's any dirt there
+/// - for each letter of its route it tries to move one tile
+/// - a move that would leave the floor is a bump: the bot stays put and cleans nothing
+/// - a move that works cleans one unit from the new tile, if there's any dirt there
+///
+/// Which bot gets the last unit on a tile two bots visit depends on which
+/// thread locks first, so the report doesn't say who cleaned what. The totals
+/// and the final floor come out the same every time.
+pub fn run(config: &amp;Config) -&gt; Report {
+    let floor = Arc::new(Mutex::new(config.floor.clone()));
+    let (width, height) = (config.width(), config.height());
+    let handles: Vec&lt;_&gt; = config
+        .bots
+        .iter()
+        .cloned()
+        .map(|plan| {
+            let floor = Arc::clone(&amp;floor);
+            thread::spawn(move || walk(plan, floor, width, height))
+        })
+        .collect();
+    let mut bots: Vec&lt;BotReport&gt; = handles.into_iter().map(|h| h.join().unwrap()).collect();
+    bots.sort_by(|a, b| a.name.cmp(&amp;b.name));
+
+    let floor = floor.lock().unwrap().clone();
+    let total = |f: &amp;[Vec&lt;u32&gt;]| f.iter().flatten().sum::&lt;u32&gt;();
+    let dirt_left = total(&amp;floor);
+    Report {
+        bots,
+        cleaned: total(&amp;config.floor) - dirt_left,
+        dirt_left,
+        floor,
+    }
+}</pre>
+  <h3>Grading, out of 10</h3>
+  <pre data-lang="sh" data-title="terminal">cd homework/hw5-swarm-sim                    # in the student's copy
+cp ../../teacher/grading/hw5-hidden-tests.rs tests/hidden.rs
+cargo build                                  # 2 points
+cargo test --test visible                    # 2 points (8 tests)
+cargo test --test mine                       # 1 point: 4+ tests (the example plus 3), all passing, each a new rule
+cargo test --test hidden                     # 3 points (9 tests: 1/3 per 3 passing)
+cargo clippy -- -D warnings                  # 1 point
+cargo fmt --check                            # 1 point</pre>
+  <p>The hidden tests check: every error message; a row with no tiles being an empty floor; the first ragged row being reported; checks running in the documented order (floor before bots, off the floor before a bad move, the first bad bot winning); names that differ only in case being different bots; a tile never going below zero; eight bots crowding a 3x3 floor giving identical reports twenty runs in a row; no bots cleaning nothing; and a bad config never reaching the sim.</p>
+  <p>For the student-tests point, read <code>tests/mine.rs</code>: three new tests that pass and each check a documented rule. Tests that only repeat a visible test don't count.</p>
+
+  <h2 id="key">Quiz 5 answer key</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>#</th><th>Answer</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><b>A Route contains a whole Route, so it has no fixed size</b></td><td>The fix is Step(char, Box&lt;Route&gt;): a Box is always one pointer wide. This is E0072.</td></tr>
+      <tr><td>2</td><td><b>Adds one more owner and bumps the count</b></td><td>Rc shares one value. clone adds an owner; the value is freed when the last owner goes.</td></tr>
+      <tr><td>3</td><td><b>It compiles, then panics: already borrowed</b></td><td>RefCell checks the borrow rules at run time. A borrow_mut while reading is still alive panics.</td></tr>
+      <tr><td>4</td><td><b>Add move before the closure</b></td><td>The thread might outlive main's rooms, so it can't borrow it. move gives the thread ownership.</td></tr>
+      <tr><td>5</td><td><b>15</b></td><td>Three threads each add 5 under the lock, and every thread is joined before printing. Always 15.</td></tr>
+      <tr><td>6</td><td><b>A sender is still alive, usually the first tx in main</b></td><td>The loop ends when every sender has been dropped. drop(tx) after the spawning loop.</td></tr>
+      <tr><td>7</td><td><b>Arc</b></td><td>Rc's counter isn't atomic, so Rc isn't Send. Arc is the thread-safe version.</td></tr>
+      <tr><td>8</td><td><b>A value of it can be moved to another thread safely</b></td><td>Send: can move to another thread. Sync: can be shared by &amp; between threads.</td></tr>
+      <tr><td>9</td><td><b>scope</b></td><td>Scoped threads are all joined before thread::scope returns, so borrowing local data is safe.</td></tr>
+      <tr><td>10</td><td><b>plan made, then beep!</b></td><td>Calling an async fn only makes a future. Nothing runs until .await, which comes after the first println.</td></tr>
+      <tr><td>11</td><td><b>#[cfg(test)]</b></td><td>#[cfg(test)] goes on the mod tests block. #[test] goes on each test function.</td></tr>
+      <tr><td>12</td><td><b>Returns an Err saying the field is missing</b></td><td>serde never guesses. You get Err("missing field ..."), unless you mark the field #[serde(default)].</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2 id="cp2">Checkpoint 2 answer key</h2>
+  <p>Questions 1 to 7 review Session 4, 8 to 15 review Session 5. Checkpoints together are 20% of the course grade.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>#</th><th>Answer</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><b>2</b></td><td>entry finds the slot, or_insert(0) starts it at 0, and += 1 counts each word. beep appears twice. (Session 4)</td></tr>
+      <tr><td>2</td><td><b>[3, 2, 1] or [3,2,1]</b></td><td>Comparing b to a, instead of a to b, reverses the order: largest first. (Session 4)</td></tr>
+      <tr><td>3</td><td><b>PartialEq</b></td><td>== calls PartialEq::eq. #[derive(PartialEq)] writes it field by field. (Session 4)</td></tr>
+      <tr><td>4</td><td><b>No: Vec doesn't implement Display</b></td><td>The bound says T: Display, and Vec only has Debug. That's E0277. Use {:?} and T: Debug instead. (Session 4)</td></tr>
+      <tr><td>5</td><td><b>18</b></td><td>filter keeps 3, 6 and 9, and sum adds them. (Session 4)</td></tr>
+      <tr><td>6</td><td><b>a only</b></td><td>Only a carries 'a, so the result is tied to a. The caller may drop b straight away. (Session 4)</td></tr>
+      <tr><td>7</td><td><b>Box&lt;dyn Bot&gt;</b></td><td>A Vec holds one type. Box&lt;dyn Bot&gt; is one type that can point at any bot. (Session 4)</td></tr>
+      <tr><td>8</td><td><b>Sharing one value between several owners</b></td><td>A Box has exactly one owner. Several owners is Rc (or Arc across threads). (Session 5)</td></tr>
+      <tr><td>9</td><td><b>Arc&lt;Mutex&lt;Vec&lt;T&gt;&gt;&gt;</b></td><td>Many owners across threads is Arc; changing it safely is Mutex. Rc and RefCell aren't Send. (Session 5)</td></tr>
+      <tr><td>10</td><td><b>6</b></td><td>Each thread sends its number, the first tx is dropped so the loop ends, and 1 + 2 + 3 = 6 whatever order they arrive in. (Session 5)</td></tr>
+      <tr><td>11</td><td><b>A Result instead of a panic when it's already borrowed</b></td><td>borrow_mut panics on a clash. try_borrow_mut returns Err, so you can handle it. (Session 5)</td></tr>
+      <tr><td>12</td><td><b>Yes, 10</b></td><td>Scoped threads are joined before scope returns, so they may borrow readings. 1 + 2 + 3 + 4 = 10. (Session 5)</td></tr>
+      <tr><td>13</td><td><b>When the guard is dropped</b></td><td>There's no unlock method. The guard unlocks when it goes out of scope, so keep it short. (Session 5)</td></tr>
+      <tr><td>14</td><td><b>Async tasks on a runtime like tokio</b></td><td>Async tasks are cheap and switch while waiting. Threads suit heavy computing on every core. (Session 5)</td></tr>
+      <tr><td>15</td><td><b>Only pub items, like a user of the crate</b></td><td>Files in tests/ are integration tests: they use your crate from the outside. Unit tests in mod tests see private items. (Session 5)</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2 id="extend">Extensions for fast students</h2>
+  <ul>
+    <li>Lab: report which worker did each job, and run it ten times. The assignment changes; the sorted reports don't.</li>
+    <li>Lab: replace step 3's <code>Mutex&lt;u32&gt;</code> with an <code>AtomicU32</code> and <code>fetch_add</code>. Time both with a million steps.</li>
+    <li>Homework: add a <code>"speed"</code> field with <code>#[serde(default)]</code> so old configs still load.</li>
+    <li>Homework: make the sim deterministic per bot by running it in rounds, one move per bot per round, with a barrier (<code>std::sync::Barrier</code>). Then the report can say who cleaned what.</li>
+    <li>Rewrite the lab's step 2 with tokio: <code>tokio::spawn</code> per room and <code>tokio::sync::mpsc</code>.</li>
+  </ul>
+
+  <footer class="site"><a href="../../docs/sessions/s5/index.html">Session 5 hub</a> · <a href="../../docs/sessions/s5/presentation.html">Slides</a> · <a href="../../docs/sessions/s5/handbook.html">Handbook</a></footer>
+</main>
+
+<script>
+window.ROBBIE_PAGE = {
+  "greeting": "Teacher's notebook for Session 5. All the answers are here, so keep it off the projector.",
+  "tips": [
+    "Run the thread slide twice. The changing order explains half the homework.",
+    "Download the crates before class. Twenty laptops and one Wi-Fi is its own concurrency lesson."
+  ],
+  "eli5": [
+    "Box owns, Rc shares, RefCell changes, A means Atomic."
+  ],
+  "hype": [
+    "Session 5 is where students stop being scared of threads. Rust did the scary part."
+  ]
+};
+</script>
+<script src="../../docs/assets/js/course.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="../../docs/assets/js/site.js"></script>
+<script src="../../docs/assets/js/robbie.js"></script>
+<script type="module" src="../../docs/assets/js/robbie3d.js"></script>
+</body>
+</html>

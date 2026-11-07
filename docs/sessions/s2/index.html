@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Session 2: Who Owns the Wrench?</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=IBM+Plex+Sans:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../assets/css/site.css">
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/" } }</script>
+</head>
+<body data-base="../.." data-page="s2" data-rust="1">
+<header class="topbar" data-crumbs='[{"t":"Course map","href":"../../index.html"},{"t":"Session 2"}]'></header>
+<main class="wrap">
+  <section class="hero">
+    <div>
+      <div class="hero-num"><span class="num" aria-hidden="true">02</span><p class="eyebrow">Session 2 · Week 1 · Thursday</p></div>
+      <h1>Who Owns the <span class="r">Wrench?</span></h1>
+      <p class="lede">Ownership, moves, borrowing and slices: the idea that makes Rust, Rust. By the end, the borrow checker stops feeling like a bouncer and starts feeling like a very thorough friend.</p>
+      <div class="rustmeter" style="--lvl:15%;max-width:320px"><span>Robbie's rust</span><i></i><span>15% · rained on</span></div>
+      <div class="cta-row">
+        <a class="btn primary" href="presentation.html">Open the slides</a>
+        <a class="btn" href="handbook.html">Read the handbook</a>
+      </div>
+    </div>
+    <!-- Video-ready: add data-video="assets/video/<name>.mp4" to this figure and the loop plays over the still. -->
+    <figure class="hero-img" style="margin:0">
+      <img src="../../assets/img/robbie-rust-1.jpg" alt="Robbie v11 in the studio after his first real rain, with rust at every joint and streaks running down his armor" width="800" height="1000">
+      <figcaption>Robbie at Session 2. Is that... orange?</figcaption>
+    </figure>
+  </section>
+
+  <h2>Session materials</h2>
+  <div class="mats">
+    <a class="mat" href="presentation.html"><span class="kind">Presentation · 60 min</span><b>Slides</b><span>21 slides with runnable code, some broken on purpose. Arrow keys to move, N for the teacher's speaker notes.</span></a>
+    <a class="mat" href="handbook.html#cheat"><span class="kind">Cheat sheet</span><b>One page, all of Session 2</b><span>Moves, borrows, slices and the five errors you'll meet this week. Keep it open during the lab.</span></a>
+    <a class="mat" href="handbook.html"><span class="kind">Student Handbook</span><b>Who Owns the Wrench? Handbook</b><span>Ownership explained slowly, with memory tricks, an error field guide, a cheat sheet and 10 practice questions.</span></a>
+    <a class="mat" href="quiz.html"><span class="kind">Quiz 2 · 15 min</span><b>Who Owns the Wrench? Quiz</b><span>12 questions, pass mark 70%. Your best score is saved in this browser.</span></a>
+  </div>
+
+  <h2>Build it</h2>
+  <div class="mats">
+    <a class="mat" href="https://github.com/c1t1zen1/RUSTUP/tree/main/labs/lab2-fix-the-borrow-checker"><span class="kind">Lab 2 · in class · 35 min</span><b>Fix the Borrow Checker</b><span>Seven tiny broken programs, seven ownership rules. No <code>.clone()</code> allowed.</span></a>
+    <a class="mat" href="https://github.com/c1t1zen1/RUSTUP/tree/main/homework/hw2-log-scanner"><span class="kind">Homework 2 · due Session 3</span><b>Log Scanner</b><span>Six functions that borrow Robbie's log instead of taking it. 8 visible tests plus hidden edge cases, scored out of 10.</span></a>
+  </div>
+
+  <h2>Topics</h2>
+  <ul id="topics" class="muted"></ul>
+
+  <div class="cta-row" style="margin-block:32px 48px">
+    <a class="btn" href="../../index.html">Back to the course map</a>
+  </div>
+</main>
+<script>
+window.ROBBIE_PAGE = {
+  greeting: "Welcome to Session 2. It rained all weekend, so my knees squeak and my elbows are orange. You've got ownership to learn. Let's both hold it together.",
+  tips: ["Do the lab puzzles in order. Each one adds one new rule.", "If you only remember one thing: many readers, or one writer."],
+  eli5: ["Ownership means every value has exactly one grown-up responsible for cleaning it up."],
+  hype: ["Session 2 is the one that turns Rust from 'weird' into 'oh, that's clever'."]
+};
+</script>
+<script src="../../assets/js/course.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="../../assets/js/site.js"></script>
+<script>
+(function(){ var s = window.RUSTUP && RUSTUP.sessions[1]; var ul = document.getElementById("topics");
+  if (s && ul) ul.innerHTML = s.topics.map(function(t){ return "<li>" + t + "</li>"; }).join(""); })();
+</script>
+<script src="../../assets/js/robbie.js"></script>
+<script type="module" src="../../assets/js/robbie3d.js"></script>
+</body>
+</html>

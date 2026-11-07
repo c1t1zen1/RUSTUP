@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Robbie Mission Control</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=IBM+Plex+Sans:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../assets/css/site.css">
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/" } }</script>
+</head>
+<body data-base="../.." data-page="s6-final" data-rust="5">
+<header class="topbar" data-crumbs='[{"t": "Course map", "href": "../../index.html"}, {"t": "Session 6", "href": "index.html"}, {"t": "Final project"}]'></header>
+<main class="read">
+  <div class="doc-head">
+    <p class="eyebrow">Final project · 40% of your course grade · due on exam day</p>
+    <h1>Robbie Mission Control</h1>
+    <div class="meta"><span>Rust library + command-line tool</span><span>Graded out of 100, +5 stretch</span><span>Robbie: 95% rust</span></div>
+  </div>
+
+  <div class="callout robbie"><img src="../../assets/img/robbie-face.jpg" alt=""><div><span class="tag">Robbie says</span>
+    <p>I can still drive, turn and pick things up. I just can't plan my day any more. You're building the thing that does: it reads a map and a crew of Robbies, runs each one's script, and tells me who ended up where. Please make it not panic. I've done enough of that for both of us.</p>
+  </div></div>
+
+  <div class="spec">
+    <div><b>100</b><span>points, plus up to 5 for a stretch goal</span></div>
+    <div><b>10+</b><span>tests of your own in tests/mine.rs</span></div>
+    <div><b>60 min</b><span>on exam day to add two new features</span></div>
+    <div><b>0</b><span>panics allowed on bad input</span></div>
+  </div>
+
+  <nav class="toc" aria-label="Contents"><b>Contents</b><ol>
+    <li><a href="#build">What you build</a></li><li><a href="#start">Getting started</a></li><li><a href="#rubric">How it's graded</a></li>
+    <li><a href="#grader">Grade yourself</a></li><li><a href="#exam">Exam day</a></li><li><a href="#stretch">Stretch goals</a></li>
+    <li><a href="#course">Your course grade</a></li><li><a href="#checklist">Hand-in checklist</a></li>
+  </ol></nav>
+
+  <h2 id="build">What you build</h2>
+  <p>A crate called <code>robbie_mc</code> with a binary called <code>robbie-mc</code>. The full spec is the <a href="https://github.com/c1t1zen1/RUSTUP/tree/main/final/robbie-mc">project README</a>; the hidden tests check every rule in it. In short:</p>
+  <ul>
+    <li><b>The world</b> is a text map: <code>.</code> floor, <code>#</code> wall, <code>P</code> a spare part. Bad tiles and ragged rows are errors with line and column numbers.</li>
+    <li><b>Scripts</b> are one command a line: <code>forward</code>, <code>forward N</code>, <code>left</code>, <code>right</code>, <code>pick</code>, <code>wait</code>. Each tile forward costs a battery; bumping a wall still costs it; a bot that tries to move on an empty battery goes flat.</li>
+    <li><b>Missions</b> are JSON: a map and a list of bots. <code>Mission::prepare</code> checks everything before anything moves and returns the first problem as an <code>McError</code>.</li>
+    <li><b>Two ways to run:</b> <code>run_mission</code> takes the bots one at a time; <code>run_fleet</code> puts each one on its own thread, sharing the world behind an <code>Arc&lt;Mutex&gt;</code>. The totals must come out the same.</li>
+    <li><b>A report</b> as text or JSON, from the command line.</li>
+  </ul>
+<pre data-lang="text" data-title="the finished project, on the example mission">$ cargo run -- missions/studio.json
+Mission report
+  Robbie   at (7, 2) facing E   battery 23  parts 2   steps 7   bumps 0
+  Zippy    at (6, 1) facing E   battery 3   parts 1   steps 7   bumps 2
+  Dusty    at (8, 4) facing E   battery 0   parts 1   steps 3   bumps 0   FLAT
+Parts collected: 4. Parts left: 0.</pre>
+  <p>You can watch that exact mission run in the <a href="arena.html">Robbie Arena</a>, step by step, and paste your own output there to check it matches.</p>
+  <p>It pulls in everything from the course: enums and <code>match</code> (Session 3), traits and iterators (4), threads, <code>Arc</code>, <code>Mutex</code> and serde (5), and docs, clippy and review (6).</p>
+
+  <h2 id="start">Getting started</h2>
+<pre data-lang="sh" data-title="terminal">git clone https://github.com/c1t1zen1/RUSTUP.git
+cd RUSTUP/final/robbie-mc
+cargo test            # 12 visible tests, all failing until you fill in the todo!()s
+cargo run -- missions/studio.json</pre>
+  <p>Every type, signature and doc comment is already in <code>src/</code>. Every body is a <code>todo!()</code>. A good order is the order the data flows:</p>
+  <ol>
+    <li><code>world.rs</code>: tiles and map parsing. The visible tests for maps go green first.</li>
+    <li><code>command.rs</code>: the script parser.</li>
+    <li><code>bot.rs</code>: <code>Facing</code> and <code>Bot::run</code>, the heart of it. Keep it one <code>match</code> on the command.</li>
+    <li><code>mission.rs</code>: <code>prepare</code>, <code>run_mission</code>, the report, then <code>run_fleet</code> last.</li>
+    <li><code>cli.rs</code>: arguments in, a report or an error out.</li>
+  </ol>
+  <div class="callout mnemonic"><span class="tag">Remember this</span><p><b>Write a test before each rule.</b> Every rule in the README is one test in <code>tests/mine.rs</code>: a bump costs a battery, a flat bot ignores <code>pick</code>, a duplicate name is an error. Ten of those and your own-tests points are done.</p></div>
+
+  <h2 id="rubric">How it's graded</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Check</th><th>Points</th><th>How it's measured</th></tr></thead>
+    <tbody>
+      <tr><td>Build</td><td>15</td><td><code>cargo build --release</code> works. If it doesn't, grading stops here.</td></tr>
+      <tr><td>Hidden tests</td><td>40</td><td>The share of the teacher's tests that pass. The exam-day tests are part of these.</td></tr>
+      <tr><td>Your tests</td><td>10</td><td>One point per passing test in <code>tests/mine.rs</code>, up to 10.</td></tr>
+      <tr><td>Clippy</td><td>10</td><td><code>cargo clippy --all-targets</code>, minus 1 per distinct warning.</td></tr>
+      <tr><td>Format</td><td>5</td><td><code>cargo fmt --check</code> is clean.</td></tr>
+      <tr><td>Docs</td><td>5</td><td><code>cargo doc</code> builds (2), public items have <code>///</code> comments (2), a README (1).</td></tr>
+      <tr><td>Code review</td><td>15</td><td>Your teacher reads it: no <code>unwrap</code> on input, sensible ownership, tidy modules, clear names. The <a href="../../review-lab.html">Review Lab</a> shows the checklist.</td></tr>
+      <tr><td>Stretch goal</td><td>+5</td><td>One of the <a href="#stretch">stretch goals</a>, shown to your teacher.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2 id="grader">Grade yourself</h2>
+  <p>The course's grader is in the repo, and it's the same one your teacher runs. From the <code>RUSTUP</code> folder:</p>
+<pre data-lang="sh" data-title="terminal">cargo run --release --manifest-path grader/Cargo.toml -- check final</pre>
+  <p>Without the hidden tests it scores the visible ones in their place, so every other number is exactly what your teacher will see. It prints a scorecard, lists the lines a reviewer will look at (<code>unwrap</code>, <code>expect</code>, <code>panic!</code>, <code>todo!</code>, <code>unsafe</code>), and writes <code>grade.json</code>. Drop that file on the <a href="../../review-lab.html">Review Lab</a> to read each line in plain English, with what to do about it.</p>
+  <div class="callout gotcha"><span class="tag">Gotcha</span><p>A test run that takes over five minutes is stopped. If <code>run_fleet</code> deadlocks, you lose those tests, and you'll be waiting the full five minutes to find out. Lock the world for one command at a time and let go between commands.</p></div>
+
+  <h2 id="exam">Exam day</h2>
+  <p>Exam day is the class after Session 6. It has two parts:</p>
+  <ol>
+    <li><b>Hand in the project</b> as it stands, with your tests green.</li>
+    <li><b>60 minutes of live coding.</b> You get a one-page handout describing two new features for Robbie Mission Control, and you add them to your own code. The teacher's tests for them join the hidden tests.</li>
+  </ol>
+  <p>We won't say what the features are. We'll say this: they add to the map and to the command language, and they touch <code>Bot::run</code>. A project where each idea lives in one place takes about 15 lines. A project with <code>'P'</code> and <code>'#'</code> checks scattered through every file takes the whole hour.</p>
+  <div class="callout robbie"><img src="../../assets/img/robbie-face.jpg" alt=""><div><span class="tag">Robbie says</span>
+    <p>Practice for it: pick a new tile and a new command of your own, add them on a branch, and time yourself. If it takes more than three files, that's a design note for your README, and a fix before exam day.</p>
+  </div></div>
+
+  <h2 id="stretch">Stretch goals</h2>
+  <p>Pick one, worth up to +5. They only count once the 100 are solid.</p>
+  <ul>
+    <li><b>Robbie Arena in Rust.</b> Build your library to WebAssembly with <code>wasm-pack</code>, expose <code>run_mission_json(&amp;str) -&gt; String</code>, and show it gives the same reports as the <a href="arena.html">Arena</a>.</li>
+    <li><b>A terminal view.</b> Draw the mission step by step in the terminal with <code>ratatui</code>.</li>
+    <li><b>Async fleet.</b> A <code>run_fleet_async</code> with tokio tasks instead of threads, giving the same report.</li>
+  </ul>
+
+  <h2 id="course">Your course grade</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Part</th><th>Weight</th><th>What's in it</th></tr></thead>
+    <tbody>
+      <tr><td>Quizzes</td><td>15%</td><td>Quizzes 1 to 6, best score each</td></tr>
+      <tr><td>Homework</td><td>25%</td><td>Homework 1 to 5, each scored out of 10 by the grader</td></tr>
+      <tr><td>Checkpoints</td><td>20%</td><td>Checkpoints 1 and 2</td></tr>
+      <tr><td>Final project</td><td>40%</td><td>This page, out of 100</td></tr>
+    </tbody>
+  </table></div>
+  <p><b>90 or more</b> earns the RUSTUP Rustacean certificate. The <a href="../../review-lab.html#grade">grade calculator</a> in the Review Lab works it out as you go.</p>
+
+  <h2 id="checklist">Hand-in checklist</h2>
+  <ul>
+    <li>No <code>todo!()</code> left, and <code>cargo test</code> is green.</li>
+    <li>At least 10 passing tests of your own in <code>tests/mine.rs</code>, each testing a rule.</li>
+    <li><code>cargo clippy --all-targets</code> and <code>cargo fmt --check</code> are both clean.</li>
+    <li>No <code>unwrap</code>, <code>expect</code> or <code>panic!</code> on input in <code>src/</code>. Every problem is an <code>McError</code>.</li>
+    <li>A <code>///</code> comment on every public item, and an example on <code>run_mission</code>.</li>
+    <li>The README says what you added and anything you'd change.</li>
+    <li>The grader runs start to finish on your machine.</li>
+  </ul>
+
+  <div class="cta-row" style="margin-block:32px 48px">
+    <a class="btn primary" href="https://github.com/c1t1zen1/RUSTUP/tree/main/final/robbie-mc">Open the starter on GitHub</a>
+    <a class="btn" href="arena.html">Robbie Arena</a>
+    <a class="btn" href="../../review-lab.html">Review Lab</a>
+    <a class="btn ghost" href="index.html">Back to Session 6</a>
+  </div>
+</main>
+<script>
+window.ROBBIE_PAGE = {
+  "greeting": "The final project. Read the README, then the tests, then write code. In that order. Trust me, I'm a robot.",
+  "tips": [
+    "Run the grader early, not the night before. Clippy and fmt points are the cheapest 15 you'll ever get.",
+    "Keep Bot::run as one match on the command. Exam day will thank you."
+  ],
+  "eli5": [
+    "You're building the brain that plans a robot's day: read the map, follow the list, write down what happened."
+  ],
+  "hype": [
+    "Six sessions led here. Everything you need is already in your hands.",
+    "A Rustacean certificate at 90. I'd give you mine, but it's rusted to my chest."
+  ]
+};
+</script>
+<script src="../../assets/js/course.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="../../assets/js/site.js"></script>
+<script src="../../assets/js/robbie.js"></script>
+<script type="module" src="../../assets/js/robbie3d.js"></script>
+</body>
+</html>

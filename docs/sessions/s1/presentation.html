@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Boot Sequence Slides</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=IBM+Plex+Sans:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../assets/css/site.css">
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/" } }</script>
+</head>
+<body data-base="../.." data-page="s1-presentation" data-rust="0">
+<header class="topbar" data-crumbs='[{"t":"Course map","href":"../../index.html"},{"t":"Session 1","href":"index.html"},{"t":"Presentation"}]'></header>
+
+<main class="wrap deck">
+
+<section class="slide" data-robbie="Welcome to Session 1! I'm factory fresh today. Use the arrow keys to move through the slides." data-emote="wave">
+  <p class="eyebrow">Session 1 · Week 1 · Monday</p>
+  <h2 style="font-size:clamp(2.6rem,8vw,5rem)">Boot Sequence</h2>
+  <p class="big-line">Today you install Rust, meet cargo, and write real programs.</p>
+  <p class="muted">Press <kbd>→</kbd> to go on, <kbd>N</kbd> for speaker notes.</p>
+  <aside class="speaker">Welcome everyone. Introduce Robbie as the course TA, and point out the rust meter: Robbie gets rustier every session, and by Session 6 he will be gloriously oxidized. The running joke of the course is that the students are learning Rust while Robbie is literally becoming it.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">Today's flight plan</p>
+  <h2>Two and a half hours</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Time</th><th>Block</th></tr></thead>
+    <tbody>
+      <tr><td>0:00</td><td>Why Rust, and installing the toolchain</td></tr>
+      <tr><td>0:20</td><td>cargo: new, run, build, check</td></tr>
+      <tr><td>0:35</td><td>Variables, mutability, shadowing, constants</td></tr>
+      <tr><td>0:55</td><td>Types: numbers, bool, char, tuples, arrays</td></tr>
+      <tr><td>1:10</td><td>Break (Robbie recharges)</td></tr>
+      <tr><td>1:20</td><td>Functions, expressions and control flow</td></tr>
+      <tr><td>1:40</td><td>Lab: Robbie's Greeting</td></tr>
+      <tr><td>2:15</td><td>Quiz 1, then homework kickoff</td></tr>
+    </tbody>
+  </table></div>
+  <aside class="speaker">Keep the first 20 minutes light. The install is the riskiest part of the day, so have everyone start the rustup download during the "Why Rust" slides.</aside>
+</section>
+
+<section class="slide" data-robbie="Rust's promise: C-level speed without C-level crashes. The compiler does the worrying so your users don't have to.">
+  <p class="eyebrow">Why Rust?</p>
+  <h2>Fast like C. Safe like a padded room.</h2>
+  <div class="two">
+    <ul>
+      <li><b>No garbage collector.</b> Memory is freed at a known point, so performance is predictable.</li>
+      <li><b>Memory safety checked at compile time.</b> Use-after-free, double free and data races are compile errors in safe Rust.</li>
+      <li><b>Zero-cost abstractions.</b> Iterators and generics compile down to the loops you'd have written by hand.</li>
+      <li><b>Great tooling.</b> One tool, cargo, builds, tests, formats, lints and publishes.</li>
+    </ul>
+    <div class="callout compare"><span class="tag">Coming from C, C++ or Python</span>
+      <p>C and C++ trust you completely; Rust checks you. Python checks at runtime and is slower; Rust checks before the program ever runs and compiles to native code.</p>
+    </div>
+  </div>
+  <aside class="speaker">Real-world anchors students may recognise: Rust is used inside the Linux kernel, Android, Windows components, Firefox, and at Cloudflare, AWS and Discord. Don't oversell; the honest pitch is "the compiler is strict so the program isn't fragile".</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">The deal</p>
+  <h2>You argue with the compiler now, so you don't argue with your users later.</h2>
+  <p class="big-line">Rust moves bugs from <span style="color:var(--bad)">runtime</span> to <span style="color:var(--good)">compile time</span>.</p>
+  <p class="muted">It will feel strict this week. By week 3 the error messages will feel like a coworker who's always right and never smug about it.</p>
+  <aside class="speaker">Set expectations: the first week has friction. Reframe compiler errors as free code review. Rust's error messages are famously helpful: they show the exact span, explain why, and often suggest the fix.</aside>
+</section>
+
+<section class="slide" data-robbie="rustup installs Rust. cargo runs everything else. You'll type cargo about a thousand times in three weeks.">
+  <p class="eyebrow">The toolchain</p>
+  <h2>Five tools, one front door</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Tool</th><th>Job</th><th>You type</th></tr></thead>
+    <tbody>
+      <tr><td>rustup</td><td>Installs and updates Rust</td><td><code>rustup update</code></td></tr>
+      <tr><td>rustc</td><td>The compiler</td><td>(cargo calls it for you)</td></tr>
+      <tr><td>cargo</td><td>Build tool and package manager</td><td><code>cargo run</code></td></tr>
+      <tr><td>rustfmt</td><td>Formats code the standard way</td><td><code>cargo fmt</code></td></tr>
+      <tr><td>clippy</td><td>Lints: catches bugs and non-idiomatic code</td><td><code>cargo clippy</code></td></tr>
+    </tbody>
+  </table></div>
+  <pre data-lang="sh" data-title="terminal">curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+rustc --version</pre>
+  <aside class="speaker">Windows users run rustup-init.exe from rustup.rs and accept the Visual Studio build tools prompt. If someone is stuck, pair them with a neighbour and move on: the Playground Run buttons keep them going today.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">Your first project</p>
+  <h2>cargo new</h2>
+  <div class="two">
+    <pre data-lang="sh" data-title="terminal">cargo new hello_robbie
+cd hello_robbie
+cargo run</pre>
+    <pre data-lang="text" data-title="what cargo made">hello_robbie/
+├── Cargo.toml      ← name, version, edition, dependencies
+└── src/
+    └── main.rs     ← fn main() starts here</pre>
+  </div>
+  <pre data-lang="toml" data-title="Cargo.toml">[package]
+name = "hello_robbie"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]</pre>
+  <aside class="speaker">Point out edition = "2024": editions let Rust evolve without breaking old code. cargo new also runs git init for you. Cargo.toml is TOML, like a friendlier INI file.</aside>
+</section>
+
+<section class="slide" data-robbie="The ! in println! means it's a macro, not a function. Macros write code for you at compile time. Fancy.">
+  <p class="eyebrow">Hello, world</p>
+  <h2>fn main and println!</h2>
+  <pre data-run>fn main() {
+    println!("Hello, Robbie!");
+}</pre>
+  <ul>
+    <li><code>fn</code> declares a function; <code>main</code> is where every program starts.</li>
+    <li><code>println!</code> is a <b>macro</b> (the <code>!</code> gives it away). It checks your format string at compile time.</li>
+    <li>Statements end with <code>;</code>. Indent with four spaces; <code>cargo fmt</code> does it for you.</li>
+  </ul>
+  <aside class="speaker">Have everyone press Run. If the Playground is slow, that's the network, not Rust. Ask: what happens if you misspell println? The error even suggests the right name.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">cargo, the daily drivers</p>
+  <h2>Four commands you'll use every day</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Command</th><th>What it does</th><th>When</th></tr></thead>
+    <tbody>
+      <tr><td><code>cargo check</code></td><td>Type-checks without producing a program</td><td>Constantly. It's the fastest feedback.</td></tr>
+      <tr><td><code>cargo run</code></td><td>Builds (debug) and runs</td><td>Trying things out</td></tr>
+      <tr><td><code>cargo build</code></td><td>Builds into <code>target/debug</code></td><td>When you just want the binary</td></tr>
+      <tr><td><code>cargo build --release</code></td><td>Optimised build into <code>target/release</code></td><td>Benchmarks and shipping</td></tr>
+    </tbody>
+  </table></div>
+  <aside class="speaker">Debug builds compile fast and include overflow checks. Release builds take longer to compile and run much faster. Mention that the final exam grader runs cargo build --release.</aside>
+</section>
+
+<section class="slide" data-robbie="Let it be, unless you mut. Variables can't change unless you say mut. Robbie's battery label is proudly immutable.">
+  <p class="eyebrow">Variables</p>
+  <h2>Immutable by default</h2>
+  <pre data-run>fn main() {
+    let battery = 100; // immutable: Robbie's battery label never changes
+    let mut distance = 0; // mut: we promise this will change
+    distance += 5;
+    distance += 3;
+    println!("battery {battery}%, drove {distance} m");
+}</pre>
+  <pre data-lang="rust" data-title="what happens without mut">let battery = 100;
+battery = 90; // error[E0384]: cannot assign twice to immutable variable `battery`</pre>
+  <aside class="speaker">Live-demo the E0384 error: remove mut from distance and show the help text "consider making this binding mutable". Immutability by default makes code easier to reason about and helps the compiler optimise.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">Constants and shadowing</p>
+  <h2>Same name, new value, maybe new type</h2>
+  <pre data-run>const MAX_SPEED_KMH: u32 = 12;
+
+fn main() {
+    let reading = "42"; // text from a sensor
+    let reading: i32 = reading.parse().unwrap(); // same name, new type
+    let reading = reading * 2; // same name, new value
+    println!("reading {reading}, top speed {MAX_SPEED_KMH} km/h");
+}</pre>
+  <ul>
+    <li><code>const</code> needs a type, is SCREAMING_SNAKE_CASE, and is fixed at compile time.</li>
+    <li><b>Shadowing</b> makes a brand-new variable that hides the old one. It's not mutation, so the type can change.</li>
+  </ul>
+  <aside class="speaker">.unwrap() means "give me the value or crash". It's fine here; Session 3 replaces it with proper error handling. Ask the class: why can't you do the same with let mut? Because mut can change the value but never the type.</aside>
+</section>
+
+<section class="slide" data-robbie="i for integers that can go negative. u for unsigned: u can't go below zero. The number is how many bits.">
+  <p class="eyebrow">Scalar types</p>
+  <h2>Numbers, true or false, and characters</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Kind</th><th>Types</th><th>Default</th></tr></thead>
+    <tbody>
+      <tr><td>Signed integers</td><td><code>i8 i16 i32 i64 i128 isize</code></td><td><code>i32</code></td></tr>
+      <tr><td>Unsigned integers</td><td><code>u8 u16 u32 u64 u128 usize</code></td><td>(none)</td></tr>
+      <tr><td>Floats</td><td><code>f32 f64</code></td><td><code>f64</code></td></tr>
+      <tr><td>Boolean</td><td><code>bool</code></td><td></td></tr>
+      <tr><td>Character</td><td><code>char</code> (4 bytes, any Unicode scalar)</td><td></td></tr>
+    </tbody>
+  </table></div>
+  <pre data-run>fn main() {
+    let a: i8 = -128;
+    let b: u8 = 255;
+    let big: u64 = 18_446_744_073_709_551_615;
+    let wheel_mm: f64 = 62.5;
+    let ok: bool = true;
+    let initial: char = 'R';
+    println!("{a} {b} {big} {wheel_mm} {ok} {initial}");
+    println!("a char takes {} bytes", std::mem::size_of::<char>());
+}</pre>
+  <aside class="speaker">usize is the size of a pointer on your machine (64 bits on most laptops) and is what you use to index arrays. Underscores in numbers are just for reading. A char is single quotes, a string is double quotes.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">Integer overflow</p>
+  <h2>255 + 10 = ?</h2>
+  <pre data-run>fn main() {
+    let level: u8 = 250;
+    println!("{:?}", level.checked_add(10)); // None: it would overflow
+    println!("{}", level.wrapping_add(10)); // 4: wraps around like an odometer
+    println!("{}", level.saturating_add(10)); // 255: sticks at the max
+}</pre>
+  <p>Plain <code>+</code> that overflows <b>panics in debug builds</b> and wraps in release builds. When overflow is possible, say what you want with <code>checked_</code>, <code>wrapping_</code> or <code>saturating_</code>.</p>
+  <aside class="speaker">Contrast with C, where signed overflow is undefined behaviour. Rust never has undefined behaviour in safe code: it either panics or does exactly what you asked.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">Compound types</p>
+  <h2>Tuples and arrays</h2>
+  <pre data-run>fn main() {
+    let pos: (i32, i32) = (3, -2); // a tuple: fixed size, mixed types allowed
+    let (x, y) = pos; // destructuring
+    let parts = ["head", "chest", "tracks"]; // an array: fixed size, one type
+    let zeros = [0; 4]; // four zeros
+    println!(
+        "x={x} y={y} first={} count={} zeros={zeros:?}",
+        parts[0],
+        parts.len()
+    );
+}</pre>
+  <p>Arrays live on the stack and their length is part of their type: <code>[&amp;str; 3]</code>. Reading past the end panics instead of reading random memory. Growable lists (<code>Vec</code>) arrive in Session 4.</p>
+  <aside class="speaker">Demo: change parts[0] to parts[5]. With a constant index the compiler catches it at compile time; with a runtime index it panics with "index out of bounds". Either way, no buffer overflow.</aside>
+</section>
+
+<section class="slide" data-robbie="The semicolon is a mute button. Put one at the end and the value goes quiet. Leave it off and the value gets returned.">
+  <p class="eyebrow">Functions and expressions</p>
+  <h2>The last line is the answer</h2>
+  <pre data-run>fn add_charge(level: u32, charge: u32) -> u32 {
+    (level + charge).min(100) // no semicolon: this value is returned
+}
+
+fn main() {
+    let level = add_charge(70, 45);
+    let label = if level == 100 { "full" } else { "charging" };
+    println!("{level}% {label}");
+}</pre>
+  <ul>
+    <li>Parameters and return types must be written out. Inside functions, Rust infers the rest.</li>
+    <li>Almost everything is an <b>expression</b> that produces a value: blocks, <code>if</code>, <code>match</code>, even <code>loop</code>.</li>
+    <li>Adding <code>;</code> turns an expression into a statement, whose value is <code>()</code>, the empty "unit" value.</li>
+  </ul>
+  <aside class="speaker">Classic mistake: writing (level + charge).min(100); with a semicolon, then getting "mismatched types: expected u32, found ()". Show it live. The compiler even suggests removing the semicolon.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">Blocks are expressions too</p>
+  <h2>Curly braces hand back a value</h2>
+  <pre data-run>fn main() {
+    let area = {
+        let w = 4;
+        let h = 3;
+        w * h // the block's value
+    };
+    println!("the charging pad is {area} square metres");
+}</pre>
+  <p class="muted">Use this to keep temporary variables out of the way: <code>w</code> and <code>h</code> disappear at the closing brace.</p>
+  <aside class="speaker">This is the first hint of scope, which matters a lot next session: values are dropped at the end of their block.</aside>
+</section>
+
+<section class="slide" data-robbie="Three loops: loop for forever, while for maybe, for for each. Most of the time you want for.">
+  <p class="eyebrow">Control flow</p>
+  <h2>loop, while, for</h2>
+  <pre data-run>fn main() {
+    let mut tries = 0;
+    let code = loop {
+        tries += 1;
+        if tries == 3 {
+            break tries * 10; // loop can hand back a value
+        }
+    };
+    let mut fuel = 3;
+    while fuel > 0 {
+        println!("vroom {fuel}");
+        fuel -= 1;
+    }
+    for step in 1..=3 {
+        println!("step {step}");
+    }
+    for part in ["head", "tracks"] {
+        println!("oil the {part}");
+    }
+    println!("door code {code}");
+}</pre>
+  <p><code>1..4</code> is 1, 2, 3. <code>1..=4</code> includes the 4. <code>if</code> conditions must be a real <code>bool</code>: no "truthy" numbers like in C or Python.</p>
+  <aside class="speaker">Mention loop labels ('outer: loop { break 'outer; }) for nested loops, then move on. For loops over ranges and arrays don't need index variables, which removes a whole class of off-by-one bugs.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">Printing</p>
+  <h2>Format strings</h2>
+  <pre data-run>fn main() {
+    let name = "Robbie";
+    let temp = 21.456;
+    println!("{name} says hi");
+    println!("[{:>8}][{:<8}][{:^8}]", "right", "left", "mid");
+    println!("{temp:.1} C");
+    println!("{:?}", (1, "two", 3.0));
+    eprintln!("errors go to stderr");
+}</pre>
+  <div class="tablewrap"><table>
+    <tbody>
+      <tr><td><code>{}</code></td><td>Display: for people</td><td><code>{:?}</code></td><td>Debug: for programmers</td></tr>
+      <tr><td><code>{x}</code></td><td>Inline variable</td><td><code>{:.2}</code></td><td>Two decimal places</td></tr>
+      <tr><td><code>{:>8}</code></td><td>Right-align in 8</td><td><code>{:#?}</code></td><td>Pretty Debug</td></tr>
+    </tbody>
+  </table></div>
+  <aside class="speaker">format! builds a String with the same rules; the lab and homework use it.</aside>
+</section>
+
+<section class="slide" data-robbie="clippy is a lint tool with opinions. Strong ones. It once told me my antenna wasn't idiomatic.">
+  <p class="eyebrow">Your robot code reviewers</p>
+  <h2>cargo fmt and cargo clippy</h2>
+  <pre data-lang="rust" data-title="clippy catches this">let pi: f64 = 3.141_592;
+// error: approximate value of `f64::consts::PI` found
+// help: consider using the constant directly: std::f64::consts::PI</pre>
+  <pre data-lang="sh" data-title="terminal">cargo fmt               # rewrite files in standard style
+cargo fmt --check       # just report (what the grader runs)
+cargo clippy            # hundreds of lints for bugs and style
+cargo clippy -- -D warnings   # treat every warning as an error</pre>
+  <p>Both run on every graded assignment. Run them before you submit, and your score goes up for free.</p>
+  <aside class="speaker">The pi example is real: clippy flags hand-typed approximations of PI. It's a nice way to show clippy knows more than syntax. Encourage running cargo fmt on save in their editor (rust-analyzer does this).</aside>
+</section>
+
+<section class="slide" data-robbie="Lab time! Build my boot sequence. Make me proud. Make me beep.">
+  <p class="eyebrow">Lab · 35 minutes</p>
+  <h2>Robbie's Greeting</h2>
+  <p>Make a new project and write a boot log for Robbie:</p>
+  <ol>
+    <li>A <code>const MODEL</code> and an array of five part names.</li>
+    <li>A function <code>boot_line(step, total, part) -> String</code> that pads so the OKs line up.</li>
+    <li>A <code>for</code> loop that prints each line, with a short pause between them.</li>
+    <li>A battery that drops 7% per part, using <code>saturating_sub</code>, and an <code>if</code> expression for Robbie's mood.</li>
+    <li>A 3, 2, 1 countdown using a reversed range, then "Hello, world!".</li>
+  </ol>
+  <pre data-lang="text" data-title="expected output">== Robbie v11 boot sequence ==
+[1/5] checking optics         OK
+[2/5] checking cassette deck  OK
+...
+battery 65% and feeling chipper
+3...
+2...
+1...
+Hello, world! I am Robbie v11. Let's learn some Rust.</pre>
+  <aside class="speaker">The full solution with tests is in the Teacher's Notebook and in labs/lab1-robbie-greeting. Fast finishers: add colour with ANSI escape codes, or ask for the user's name with std::io::stdin.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">Homework 1 · due before Session 2</p>
+  <h2>Units Converter</h2>
+  <p>A menu-driven converter for kilometres and miles, Celsius and Fahrenheit, plus Robbie's battery bar. The menu is written for you; you fill in five functions in <code>src/lib.rs</code> until <code>cargo test</code> passes.</p>
+  <pre data-lang="sh" data-title="terminal">cd homework/hw1-units-converter
+cargo test        # 8 visible tests; the grader has more
+cargo clippy -- -D warnings
+cargo fmt --check</pre>
+  <p class="muted">In the final project this becomes Robbie's status readout.</p>
+  <aside class="speaker">Starter, brief and rubric are in the Student Handbook; the solution and hidden test ideas are in the Teacher's Notebook (teacher/s1/notebook.html in the repo).</aside>
+</section>
+
+<section class="slide" data-robbie="Recap! You now know more Rust than I do. Then again, I'm made of steel, and soon, rust." data-emote="happy">
+  <p class="eyebrow">Recap</p>
+  <h2>Boot sequence complete</h2>
+  <div class="two">
+    <ul>
+      <li>rustup installs; cargo runs everything.</li>
+      <li><code>let</code> is immutable; <code>mut</code> opts in to change.</li>
+      <li>Shadowing makes a new variable, so the type can change.</li>
+      <li>Integers say their sign and size: <code>i32</code>, <code>u8</code>, <code>usize</code>.</li>
+    </ul>
+    <ul>
+      <li>Blocks, <code>if</code> and <code>loop</code> are expressions.</li>
+      <li>No semicolon on the last line means "return this".</li>
+      <li><code>for x in 1..=3</code> beats index juggling.</li>
+      <li>fmt and clippy are free points.</li>
+    </ul>
+  </div>
+  <div class="cta-row"><a class="btn primary" href="quiz.html">Take Quiz 1</a><a class="btn" href="handbook.html">Student Handbook</a></div>
+  <aside class="speaker">Run Quiz 1 now (15 minutes). Then hand out the homework and preview Session 2: ownership, the big one.</aside>
+</section>
+
+</main>
+
+<div class="wrap"><nav class="deck-nav" aria-label="Slide controls">
+  <button class="btn prev" type="button">← Back</button>
+  <button class="btn primary next" type="button">Next →</button>
+  <span class="prog" aria-hidden="true"><i></i></span>
+  <span class="count">1 / 1</span>
+  <button class="btn ghost notes" type="button">Speaker notes</button>
+</nav></div>
+
+<script>
+window.ROBBIE_PAGE = {
+  greeting: "I'm Robbie. Use the arrow keys or the buttons to move, and press Run on any code to try it.",
+  tips: [
+    "Press N to show the speaker notes. They have the extra context the teacher talks through.",
+    "Every Run button sends the code to the official Rust Playground. Edit the code in the Playground to experiment.",
+    "Try breaking the code on purpose. Rust's error messages are some of the friendliest in programming."
+  ],
+  eli5: [
+    "A variable is a labelled box. In Rust the lid is glued shut unless you write mut.",
+    "A function is a little machine: things go in through the parameters and one answer comes out the end."
+  ],
+  hype: ["You just wrote Rust. Out loud, in public. Proud of you.", "Twenty slides in and not a single segfault. Beep boop."]
+};
+</script>
+<script src="../../assets/js/course.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="../../assets/js/site.js"></script>
+<script src="../../assets/js/robbie.js"></script>
+<script src="../../assets/js/slides.js"></script>
+<script type="module" src="../../assets/js/robbie3d.js"></script>
+</body>
+</html>

@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Boot Sequence Teacher's Notebook</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=IBM+Plex+Sans:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../docs/assets/css/site.css">
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/" } }</script>
+</head>
+<body data-base="../../docs" data-page="s1-notebook" data-rust="0">
+<header class="topbar" data-crumbs='[{"t":"Course map","href":"../../docs/index.html"},{"t":"Session 1","href":"../../docs/sessions/s1/index.html"},{"t":"Teacher&#39;s Notebook"}]'></header>
+<main class="read">
+  <div class="doc-head">
+    <p class="eyebrow">Teacher's Notebook · Session 1</p>
+    <h1>Boot Sequence</h1>
+    <div class="meta"><span>Session length: 2.5 hours</span><span>Prep: 20 minutes</span><span>Contains all answers</span></div>
+  </div>
+
+  <nav class="toc" aria-label="Contents"><b>Contents</b><ol>
+    <li><a href="#goals">Learning goals</a></li><li><a href="#prep">Before class</a></li><li><a href="#plan">Run of show</a></li>
+    <li><a href="#deep">Deeper notes by topic</a></li><li><a href="#mistakes">Mistakes to expect</a></li><li><a href="#lab">Lab solution</a></li>
+    <li><a href="#hw">Homework solution and grading</a></li><li><a href="#key">Quiz 1 answer key</a></li><li><a href="#extend">Extensions</a></li>
+  </ol></nav>
+
+  <h2 id="goals">Learning goals</h2>
+  <p>By the end of Session 1 a student can:</p>
+  <ol>
+    <li>Install Rust with rustup and create, check, run and release-build a cargo project.</li>
+    <li>Declare immutable and mutable variables, constants, and shadowed variables, and explain the difference.</li>
+    <li>Pick the right scalar type for a value and handle overflow on purpose.</li>
+    <li>Write functions with typed parameters and return values, using expression-based returns.</li>
+    <li>Use <code>if</code>, <code>loop</code>, <code>while</code> and <code>for</code>, including <code>if</code> and <code>loop</code> as expressions.</li>
+    <li>Run <code>cargo fmt</code> and <code>cargo clippy</code> and act on what they say.</li>
+  </ol>
+
+  <h2 id="prep">Before class</h2>
+  <ul>
+    <li>Send the install line from the course home page a day early. Ask students to run <code>cargo --version</code> and bring the output.</li>
+    <li>Install an editor with rust-analyzer (VS Code, Zed, RustRover or Neovim). Inlay type hints are the best teaching aid you'll have this week.</li>
+    <li>Have the lab folder <code>labs/lab1-robbie-greeting</code> open, and run <code>cargo test</code> in it once so the build cache is warm.</li>
+    <li>Windows machines need the MSVC build tools; rustup-init offers to install them. Allow 10 extra minutes.</li>
+  </ul>
+
+  <h2 id="plan">Run of show</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Time</th><th>Slides</th><th>Do</th></tr></thead>
+    <tbody>
+      <tr><td>0:00</td><td>1 to 4</td><td>Intro, Robbie and the rust meter, why Rust. Students start the rustup install now.</td></tr>
+      <tr><td>0:20</td><td>5 to 8</td><td>Toolchain and cargo. Everyone runs <code>cargo new</code> and <code>cargo run</code>.</td></tr>
+      <tr><td>0:35</td><td>9 to 10</td><td>Variables. Live-demo the E0384 error and the shadowing type change.</td></tr>
+      <tr><td>0:55</td><td>11 to 13</td><td>Types, overflow, tuples and arrays.</td></tr>
+      <tr><td>1:10</td><td></td><td>Break, 10 minutes.</td></tr>
+      <tr><td>1:20</td><td>14 to 18</td><td>Functions, expressions, control flow, printing, fmt and clippy.</td></tr>
+      <tr><td>1:40</td><td>19</td><td>Lab: Robbie's Greeting, 35 minutes. Walk the room.</td></tr>
+      <tr><td>2:15</td><td>20 to 21</td><td>Quiz 1 (15 minutes), homework kickoff, preview of ownership.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2 id="deep">Deeper notes by topic</h2>
+
+  <h3>Why the compiler is strict</h3>
+  <p>Rust's safety rules are enforced statically: the compiler proves certain bugs are impossible before the program runs. The guarantees that matter most in week 1: no null pointers in safe code (Session 3 introduces <code>Option</code> instead), no reading uninitialised variables, bounds-checked indexing, and no undefined behaviour from integer overflow. Next session's ownership system adds memory safety without a garbage collector.</p>
+  <div class="callout teacher"><span class="tag">Say it this way</span><p>"A C compiler asks: is this valid syntax? The Rust compiler asks: could this program ever do something you didn't mean? It's stricter because it's answering a harder question."</p></div>
+
+  <h3>cargo and editions</h3>
+  <p><code>cargo new</code> writes <code>edition = "2024"</code>. Editions are opt-in language revisions every three years (2015, 2018, 2021, 2024); crates on different editions still link together. <code>cargo check</code> runs the front end and the borrow checker but skips code generation, which is why it's so much faster than <code>cargo build</code>. <code>target/</code> holds build output and should never be committed (cargo's generated <code>.gitignore</code> already excludes it).</p>
+
+  <h3>Mutability, constants and shadowing</h3>
+  <ul>
+    <li><code>let</code> bindings are immutable by default. This isn't only style: the borrow checker (Session 2) leans on it, and it helps the optimiser.</li>
+    <li><code>const</code> is inlined wherever it's used and must be computable at compile time. <code>static</code> (not covered yet) is a single memory location with a fixed address.</li>
+    <li>Shadowing creates a new binding. The old value still exists until the end of its scope, but its name is hidden. It's idiomatic for transformations of the same concept: <code>let input = input.trim();</code></li>
+  </ul>
+  <div class="callout compare"><span class="tag">Comparisons for the class</span><p><b>C/C++:</b> <code>let</code> is like <code>const auto</code>; <code>let mut</code> is like plain <code>auto</code>. <b>Python:</b> every name is rebindable, so Python code works like Rust code that shadows everything; the difference is that Rust checks the types of each new binding.</p></div>
+
+  <h3>Integer types and overflow</h3>
+  <p>In debug builds, arithmetic overflow panics (<code>attempt to add with overflow</code>). In release builds, the default is two's-complement wrapping, controlled by the <code>overflow-checks</code> profile setting. Neither is undefined behaviour. Explicit methods: <code>checked_*</code> returns <code>Option</code>, <code>wrapping_*</code> wraps, <code>saturating_*</code> clamps, <code>overflowing_*</code> returns the value and a flag. Conversions are always explicit: <code>as</code> casts (can truncate), or <code>From</code>/<code>TryFrom</code> (Session 3).</p>
+  <p><code>char</code> is a Unicode scalar value, always 4 bytes, so <code>'é'</code> and <code>'R'</code> are the same size. Strings are UTF-8 and covered in Session 2, which is why the lab only uses string literals.</p>
+
+  <h3>Expressions and the unit type</h3>
+  <p>A block's value is its final expression. A trailing semicolon discards the value and the block evaluates to <code>()</code>, the unit type (a zero-sized type with one value). The error <code>expected i32, found ()</code> almost always means a stray semicolon, and rustc says so: "remove this semicolon to return this value".</p>
+
+  <h3>Control flow</h3>
+  <p><code>if</code> requires a <code>bool</code>. <code>loop</code> is the only loop that can produce a value through <code>break value</code>, because it's the only one the compiler knows runs until a break. <code>for</code> works with anything that implements <code>IntoIterator</code>; ranges and arrays are the week 1 examples, and iterators get a full treatment in Session 4. Labelled breaks (<code>'outer:</code>) exit nested loops.</p>
+
+  <h3>fmt and clippy</h3>
+  <p>clippy ships hundreds of lints in groups (correctness, suspicious, style, complexity, perf, pedantic). Correctness lints are errors by default. The course grader runs <code>cargo clippy -- -D warnings</code>, which turns every warning into an error. In the pi demo, the lint is <code>clippy::approx_constant</code>.</p>
+
+  <h2 id="mistakes">Mistakes to expect, and what to say</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Symptom</th><th>Cause</th><th>Nudge</th></tr></thead>
+    <tbody>
+      <tr><td>E0384 cannot assign twice</td><td>Missing <code>mut</code></td><td>"Read the help line: what does it suggest?"</td></tr>
+      <tr><td>mismatched types, found <code>()</code></td><td>Semicolon on the last line</td><td>"The semicolon is a mute button."</td></tr>
+      <tr><td>mismatched types, expected <code>f64</code>, found integer</td><td><code>let x: f64 = 5;</code></td><td>"Rust never converts numbers silently. Write 5.0."</td></tr>
+      <tr><td><code>if</code> and <code>else</code> have incompatible types</td><td>Branches return different types</td><td>"What type should the variable be? Both branches have to agree."</td></tr>
+      <tr><td>Panic: attempt to subtract with overflow</td><td>Unsigned math going below zero</td><td>"Which method sticks at zero instead?" (<code>saturating_sub</code>)</td></tr>
+      <tr><td><code>linker 'cc' not found</code></td><td>No C toolchain on Linux, or no MSVC on Windows</td><td>Install build-essential, or the MSVC build tools.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2 id="lab">Lab solution: Robbie's Greeting</h2>
+  <p>Also in <code>labs/lab1-robbie-greeting</code>, with two tests. It passes <code>cargo test</code>, <code>cargo clippy -- -D warnings</code> and <code>cargo fmt --check</code>.</p>
+  <pre data-lang="rust" data-title="labs/lab1-robbie-greeting/src/main.rs">//! Lab 1: Robbie's Greeting. A boot log, a countdown and a hello.
+use std::thread;
+use std::time::Duration;
+
+const MODEL: &amp;str = "Robbie v11";
+const PARTS: [&amp;str; 5] = ["optics", "cassette deck", "shoulders", "grippers", "tracks"];
+
+/// One line of the boot log, padded so the OKs line up.
+fn boot_line(step: usize, total: usize, part: &amp;str) -&gt; String {
+    format!("[{step}/{total}] checking {part:&lt;14} OK")
+}
+
+/// Battery drops 7% per part checked, but never below zero.
+fn battery_after(checks: u32) -&gt; u32 {
+    100_u32.saturating_sub(checks * 7)
+}
+
+fn main() {
+    println!("== {MODEL} boot sequence ==");
+    let total = PARTS.len();
+    for (i, part) in PARTS.iter().enumerate() {
+        println!("{}", boot_line(i + 1, total, part));
+        thread::sleep(Duration::from_millis(150));
+    }
+
+    let battery = battery_after(total as u32);
+    let mood = if battery &gt; 50 { "chipper" } else { "sleepy" };
+    println!("battery {battery}% and feeling {mood}");
+
+    for n in (1..=3).rev() {
+        println!("{n}...");
+        thread::sleep(Duration::from_millis(300));
+    }
+    println!("Hello, world! I am {MODEL}. Let's learn some Rust.");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn boot_line_pads_parts() {
+        assert_eq!(
+            boot_line(1, 5, "optics"),
+            "[1/5] checking optics         OK"
+        );
+    }
+
+    #[test]
+    fn battery_never_goes_negative() {
+        assert_eq!(battery_after(5), 65);
+        assert_eq!(battery_after(100), 0);
+    }
+}</pre>
+  <div class="callout teacher"><span class="tag">Discussion prompts</span><ul>
+    <li>Why does <code>boot_line</code> take <code>usize</code> for the step? (Because <code>enumerate</code> gives indexes as <code>usize</code>.)</li>
+    <li>What happens if you change <code>saturating_sub</code> to <code>-</code> and check 20 parts? (A panic in debug: unsigned subtraction overflow.)</li>
+    <li>Why is <code>total as u32</code> needed? (No implicit conversions between integer types.)</li>
+  </ul></div>
+
+  <h2 id="hw">Homework 1 solution and grading</h2>
+  <details><summary>Show the solution for src/lib.rs</summary>
+  <pre data-lang="rust" data-title="homework/hw1-units-converter/src/lib.rs (solution)">//! Robbie's Units Converter. Fill in every `todo!()` so `cargo test` passes.
+
+/// Kilometres in one mile.
+pub const KM_PER_MILE: f64 = 1.609_344;
+
+/// Converts kilometres to miles.
+pub fn km_to_miles(km: f64) -&gt; f64 {
+    km / KM_PER_MILE
+}
+
+/// Converts miles to kilometres.
+pub fn miles_to_km(miles: f64) -&gt; f64 {
+    miles * KM_PER_MILE
+}
+
+/// Converts degrees Celsius to degrees Fahrenheit.
+pub fn celsius_to_fahrenheit(c: f64) -&gt; f64 {
+    c * 9.0 / 5.0 + 32.0
+}
+
+/// Converts degrees Fahrenheit to degrees Celsius.
+pub fn fahrenheit_to_celsius(f: f64) -&gt; f64 {
+    (f - 32.0) * 5.0 / 9.0
+}
+
+/// Draws a 10-cell battery bar. Values over 100 are treated as 100.
+///
+/// `battery_bar(42)` returns `"[####------] 42%"` (each `#` is 10%, rounded down).
+pub fn battery_bar(percent: u8) -&gt; String {
+    let p = percent.min(100);
+    let filled = (p / 10) as usize;
+    let mut bar = String::from("[");
+    for i in 0..10 {
+        if i &lt; filled {
+            bar.push('#');
+        } else {
+            bar.push('-');
+        }
+    }
+    bar.push_str("] ");
+    format!("{bar}{p}%")
+}
+
+/// Robbie's mood for a battery level: "sleepy" under 20, "ok" under 80, "zoomy" otherwise.
+pub fn battery_mood(percent: u8) -&gt; &amp;'static str {
+    if percent &lt; 20 {
+        "sleepy"
+    } else if percent &lt; 80 {
+        "ok"
+    } else {
+        "zoomy"
+    }
+}</pre>
+  </details>
+  <p><b>Hidden tests the grader adds:</b> <code>battery_bar(0)</code> is <code>"[----------] 0%"</code>; <code>battery_bar(100)</code> and <code>battery_bar(255)</code> are full and show 100%; <code>battery_bar(9)</code> has no <code>#</code>; <code>battery_mood(19)</code> is sleepy and <code>battery_mood(79)</code> is ok; <code>km_to_miles(0.0)</code> is 0; Celsius and Fahrenheit round-trip for -273.15, 0 and 37.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Check</th><th>Points</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Builds</td><td>2</td><td>All or nothing</td></tr>
+      <tr><td>Visible tests</td><td>3</td><td>Share of 8 passing</td></tr>
+      <tr><td>Hidden tests</td><td>3</td><td>Share passing</td></tr>
+      <tr><td>clippy clean</td><td>1</td><td>With <code>-D warnings</code></td></tr>
+      <tr><td>fmt clean</td><td>1</td><td><code>cargo fmt --check</code></td></tr>
+    </tbody>
+  </table></div>
+  <p>Common partial-credit cases: forgetting to cap at 100 (fails the 255 test), using <code>(percent / 10) as usize</code> before capping (draws 25 cells), or rounding the bar up with floats.</p>
+
+  <h2 id="key">Quiz 1 answer key</h2>
+  <div id="answerKey"></div>
+
+  <h2 id="extend">Extensions for fast students</h2>
+  <ul>
+    <li>Add ANSI colours to the boot log (<code>"\x1b[32mOK\x1b[0m"</code>), then discuss why a library like <code>colored</code> exists.</li>
+    <li>Read a name with <code>std::io::stdin().read_line</code> and greet the user. (Preview of <code>String</code> for Session 2.)</li>
+    <li>Make the countdown length a <code>const</code> and add a labelled loop that aborts the boot if the battery drops under 50%.</li>
+  </ul>
+
+  <h3>Beyond reading</h3>
+  <ul>
+    <li><a href="https://doc.rust-lang.org/book/" target="_blank" rel="noopener">The Rust Programming Language</a>, chapters 1 to 3.</li>
+    <li><a href="https://doc.rust-lang.org/rust-by-example/" target="_blank" rel="noopener">Rust by Example</a>: Hello World, Primitives, Variable Bindings, Flow of Control.</li>
+    <li><a href="https://rust-lang.github.io/rust-clippy/master/" target="_blank" rel="noopener">The clippy lint list</a>, to browse what clippy can catch.</li>
+  </ul>
+
+  <footer class="site"><a href="../../docs/sessions/s1/index.html">Back to Session 1</a> · <a href="../../docs/sessions/s1/presentation.html">Open the slides</a></footer>
+</main>
+<script>
+window.ROBBIE_PAGE = {
+  greeting: "Teacher mode! This notebook has every answer. I promise not to tell the students. My cassette deck is a vault.",
+  tips: ["Warm the build cache before class: run cargo test in the lab folder once.", "When a student is stuck, ask them to read the help line of the error out loud. It fixes about half of week 1 problems."],
+  eli5: ["The answer key below is generated from the same file the quiz uses, so the two can never disagree."],
+  hype: ["Teaching Rust is a superpower. You're basically handing out superpowers."]
+};
+</script>
+<script src="../../docs/assets/js/course.js"></script>
+<script src="../../docs/sessions/s1/quiz-data.js"></script>
+<script>
+(function () {
+  const Q = window.QUIZ, el = document.getElementById("answerKey"), esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  el.innerHTML = '<div class="tablewrap"><table><thead><tr><th>#</th><th>Question</th><th>Answer</th><th>Why</th></tr></thead><tbody>' +
+    Q.questions.map((q, i) => `<tr><td>${i + 1}</td><td>${q.prompt}${q.code ? `<br><code>${esc(q.code).replace(/\n/g, "<br>")}</code>` : ""}</td><td><b>${q.type === "mc" ? esc(q.options[q.answer]) : esc(q.answers[0])}</b></td><td>${q.why}</td></tr>`).join("") +
+    "</tbody></table></div>";
+})();
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="../../docs/assets/js/site.js"></script>
+<script src="../../docs/assets/js/robbie.js"></script>
+<script type="module" src="../../docs/assets/js/robbie3d.js"></script>
+</body>
+</html>

@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Session 6: Ship It</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=IBM+Plex+Sans:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../assets/css/site.css">
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/" } }</script>
+</head>
+<body data-base="../.." data-page="s6" data-rust="5">
+<header class="topbar" data-crumbs='[{"t": "Course map", "href": "../../index.html"}, {"t": "Session 6"}]'></header>
+<main class="wrap">
+  <section class="hero">
+    <div>
+      <div class="hero-num"><span class="num" aria-hidden="true">06</span><p class="eyebrow">Session 6 · Week 3 · Thursday</p></div>
+      <h1>Ship <span class="r">It</span></h1>
+      <p class="lede">Macros, unsafe code, calling C, benchmarks, WebAssembly and publishing: the edges of Rust, used on purpose. Then the final project, where everything from six sessions plans Robbie's day.</p>
+      <div class="rustmeter" style="--lvl:95%;max-width:320px"><span>Robbie's rust</span><i></i><span>95% · chest plate cracked</span></div>
+      <div class="cta-row">
+        <a class="btn primary" href="presentation.html">Open the slides</a>
+        <a class="btn" href="final.html">The final project</a>
+      </div>
+    </div>
+    <!-- Video-ready: add data-video="assets/video/<name>.mp4" to this figure and the loop plays over the still. -->
+    <figure class="hero-img" style="margin:0">
+      <img src="../../assets/img/robbie-rust-5.jpg" alt="Robbie v11 in the studio, rusted all over, his armor gone except a cracked chrome chest plate" width="800" height="1000">
+      <figcaption>Robbie at Session 6. One shiny part left, and it's cracked.</figcaption>
+    </figure>
+  </section>
+
+  <h2>Session materials</h2>
+  <div class="mats">
+    <a class="mat" href="presentation.html"><span class="kind">Presentation · 60 min</span><b>Slides</b><span>23 slides with runnable code, a few broken on purpose and one that panics on purpose. Arrow keys to move, N for the teacher's speaker notes.</span></a>
+    <a class="mat" href="handbook.html#cheat"><span class="kind">Cheat sheet</span><b>One page, all of Session 6</b><span>macro_rules!, unsafe and SAFETY comments, extern "C", C strings, overflow methods, wasm and publishing on one screen.</span></a>
+    <a class="mat" href="handbook.html"><span class="kind">Student Handbook</span><b>Ship It Handbook</b><span>Every idea from today with runnable examples, memory tricks, an error field guide and 10 practice questions.</span></a>
+    <a class="mat" href="quiz.html"><span class="kind">Quiz 6 · 15 min</span><b>Ship It Quiz</b><span>12 questions, pass mark 70%. Your best score is saved in this browser.</span></a>
+  </div>
+
+  <h2>The final</h2>
+  <div class="mats">
+    <a class="mat" href="final.html"><span class="kind">Final project · 40% · due on exam day</span><b>Robbie Mission Control</b><span>A library and command-line tool that runs a crew of Robbies through a mission and reports back. Graded out of 100 by the same grader you can run yourself.</span></a>
+    <a class="mat" href="arena.html"><span class="kind">Tool · in your browser</span><b>Robbie Arena</b><span>Watch any mission run tile by tile, then paste your program's output to check it matches the spec.</span></a>
+    <a class="mat" href="../../review-lab.html"><span class="kind">Tool · in your browser</span><b>Review Lab</b><span>Read your grader report in plain English, see the code review rubric, and work out your course grade.</span></a>
+    <a class="mat" href="final.html#exam"><span class="kind">Exam day · the class after Session 6</span><b>Two new features, 60 minutes</b><span>Hand in the project, then add two features you'll see on the day. A clean design makes it a short hour.</span></a>
+  </div>
+
+  <h2>Build it</h2>
+  <div class="mats">
+    <a class="mat" href="https://github.com/c1t1zen1/RUSTUP/tree/main/labs/lab6-final-build"><span class="kind">Lab 6 · in class · 30 min</span><b>The Final Build Lab</b><span>Five steps, nine tests: a macro, a safe wrapper around unsafe code, two calls into C, a benchmark, and the paperwork cargo publish asks for.</span></a>
+    <a class="mat" href="https://github.com/c1t1zen1/RUSTUP/tree/main/final/robbie-mc"><span class="kind">Final project starter</span><b>robbie-mc</b><span>Every type and signature written, every body a todo!(). 12 visible tests and a README that is the spec.</span></a>
+    <a class="mat" href="https://github.com/c1t1zen1/RUSTUP/tree/main/grader"><span class="kind">The grader</span><b>robbie-grader</b><span>Builds, tests, lints and scores a homework or the final, exactly as your teacher will. Run it any time.</span></a>
+  </div>
+
+  <h2>Topics</h2>
+  <ul id="topics" class="muted"></ul>
+
+  <div class="cta-row" style="margin-block:32px 48px">
+    <a class="btn" href="../../index.html">Back to the course map</a>
+  </div>
+</main>
+<script>
+window.ROBBIE_PAGE = {
+  "greeting": "Welcome to Session 6. I'm 95% rust and my chest plate has a crack in it. Let's ship before anything else falls off.",
+  "tips": [
+    "Every unsafe block gets a // SAFETY: comment. If you can't write the comment, you can't write the block.",
+    "Start the final project tonight, with world.rs. Run the grader early."
+  ],
+  "eli5": [
+    "Today you learn the special tools in the back of the workshop, then build Robbie's mission planner with everything you know."
+  ],
+  "hype": [
+    "Last session. Six sessions, three weeks, one very rusty robot. Look at you."
+  ]
+};
+</script>
+<script src="../../assets/js/course.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="../../assets/js/site.js"></script>
+<script>
+(function(){ var s = window.RUSTUP && RUSTUP.sessions[5]; var ul = document.getElementById("topics");
+  if (s && ul) ul.innerHTML = s.topics.map(function(t){ return "<li>" + t + "</li>"; }).join(""); })();
+</script>
+<script src="../../assets/js/robbie.js"></script>
+<script type="module" src="../../assets/js/robbie3d.js"></script>
+</body>
+</html>

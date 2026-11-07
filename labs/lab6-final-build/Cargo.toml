@@ -1,0 +1,12 @@
+[package]
+name = "ship_it"
+version = "0.1.0"
+edition = "2024"
+# Step 5: fill these in. `cargo publish --dry-run` refuses a crate without them.
+description = ""
+license = ""
+repository = ""
+keywords = []
+categories = []
+
+[dependencies]

@@ -1,0 +1,8 @@
+[package]
+name = "robbie-grader"
+version = "0.1.0"
+edition = "2024"
+description = "Grades a RUSTUP final project: build, tests, lint, format, docs and review flags"
+license = "MIT"
+
+[dependencies]

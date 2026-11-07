@@ -1,0 +1,10 @@
+# Robbie starts top left, facing East
+forward 2
+right
+forward 2
+pick
+left
+forward 4
+pick
+right
+forward

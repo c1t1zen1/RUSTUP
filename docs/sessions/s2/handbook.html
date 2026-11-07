@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Who Owns the Wrench Handbook</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=IBM+Plex+Sans:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../assets/css/site.css">
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/" } }</script>
+</head>
+<body data-base="../.." data-page="s2-handbook" data-rust="1">
+<header class="topbar" data-crumbs='[{"t":"Course map","href":"../../index.html"},{"t":"Session 2","href":"index.html"},{"t":"Student Handbook"}]'></header>
+
+<main class="read">
+  <div class="doc-head">
+    <p class="eyebrow">Student Handbook · Session 2</p>
+    <h1>Who Owns the Wrench?</h1>
+    <div class="meta"><span>Reading time: 30 minutes</span><span>Robbie rust level: 1 (a little orange at the elbows)</span></div>
+  </div>
+
+  <div class="callout robbie"><img src="../../assets/img/robbie-face.jpg" alt=""><div><span class="tag">Robbie says</span>
+    <p>Today's the big one. Ownership is the idea that makes Rust different from every language you already know, and it's also why I'm rusting: someone borrowed my oil can and the borrow checker can't help me with that, because it happened in real life. Read this slowly, run every example, and break them on purpose.</p>
+  </div></div>
+
+  <nav class="toc" aria-label="Contents"><b>Contents</b><ol>
+    <li><a href="#why">Why ownership exists</a></li><li><a href="#mem">Stack and heap</a></li><li><a href="#rules">The three rules</a></li>
+    <li><a href="#move">Move, Copy and Clone</a></li><li><a href="#borrow">Borrowing</a></li><li><a href="#rule">Many readers or one writer</a></li>
+    <li><a href="#slices">Slices</a></li><li><a href="#str">String vs &amp;str</a></li><li><a href="#life">Lifetimes, gently</a></li>
+    <li><a href="#errors">Error field guide</a></li><li><a href="#cheat">Cheat sheet</a></li><li><a href="#practice">Practice questions</a></li><li><a href="#hw">Homework 2</a></li>
+  </ol></nav>
+
+  <h2 id="why">1. Why ownership exists</h2>
+  <p>Every program borrows memory from the computer and has to give it back. Give it back too early and something still using it reads garbage. Give it back twice and the program crashes. Never give it back and memory slowly fills up. These three bugs (use after free, double free and leaks) have caused a huge share of the security holes in C and C++ software.</p>
+  <p>Python and JavaScript solve it with a garbage collector that tidies up while your program runs. Rust solves it before your program runs: a set of rules, checked by the compiler, that guarantees every piece of memory is freed exactly once, at a point you can see in the code.</p>
+  <div class="callout mnemonic"><span class="tag">Remember this</span><p><b>One wrench, one mechanic.</b> Whoever holds the wrench is responsible for putting it back on the wall. You can hand it over or lend it out, but there's never a moment when two people both think it's theirs.</p></div>
+
+  <h2 id="mem">2. Stack and heap</h2>
+  <p>The <b>stack</b> is a pile of plates. Every function call puts a plate on top with its local variables, and takes it off when it returns. It's fast because it never has to search for space, but everything on it must have a size known when the program compiles.</p>
+  <p>The <b>heap</b> is a warehouse. When you need space for something that can grow, like a <code>String</code> or a <code>Vec</code>, you ask the warehouse for room and get back an address. Finding room is slower, and somebody has to give it back.</p>
+  <pre data-lang="text" data-title="let s = String::from(&quot;robbie&quot;);">   stack (s)              heap
+ ┌──────────┬─────┐     ┌───┬───┬───┬───┬───┬───┐
+ │ ptr      │  ●──┼────▶│ r │ o │ b │ b │ i │ e │
+ │ len      │  6  │     └───┴───┴───┴───┴───┴───┘
+ │ capacity │  6  │
+ └──────────┴─────┘</pre>
+  <p>A <code>String</code> is three numbers on the stack: where the text is, how long it is, and how much room it has. Ownership is all about making sure exactly one of those stack records frees that heap text.</p>
+
+  <h2 id="rules">3. The three rules</h2>
+  <ol>
+    <li>Every value has exactly one <b>owner</b>.</li>
+    <li>There can only be one owner at a time.</li>
+    <li>When the owner goes out of scope, the value is <b>dropped</b> (its memory is freed).</li>
+  </ol>
+  <pre data-run>fn main() {
+    let outer = String::from("chassis");
+    {
+        let inner = String::from("antenna");
+        println!("{outer} and {inner}");
+    } // inner is dropped here
+    println!("{outer} is still here");
+} // outer is dropped here</pre>
+  <div class="callout compare"><span class="tag">Coming from C, C++ or Python</span><p>In C you'd call <code>free(inner)</code> yourself. In C++ this is RAII, and a destructor runs at the brace. In Python the garbage collector frees it at some later point. Rust works like C++ here, except the compiler also stops you from keeping a pointer to <code>inner</code> after it's gone.</p></div>
+
+  <h2 id="move">4. Move, Copy and Clone</h2>
+  <h3>Move</h3>
+  <p>Assigning a <code>String</code> to another variable, or passing it to a function, <b>moves</b> it. The new variable owns it; the old one becomes an empty name tag you're not allowed to use.</p>
+  <pre data-lang="rust" data-title="doesn't compile">let a = String::from("wrench");
+let b = a;          // the wrench moves to b
+println!("{a}");    // error[E0382]: borrow of moved value: `a`</pre>
+  <p>Why not just copy the text? Because then <code>a</code> and <code>b</code> would both point at the same heap memory, and both would free it at the end: a double free. Rust prevents it by making <code>a</code> unusable.</p>
+  <div class="callout mnemonic"><span class="tag">Remember this</span><p><b>"Let b = a" means "a, give b the wrench."</b> It doesn't mean "photocopy a". After the hand-off, a has empty hands.</p></div>
+
+  <h3>Copy</h3>
+  <p>Small values that live entirely on the stack are <b>Copy</b>: assigning them makes a cheap duplicate and both stay usable. That's every integer and float, <code>bool</code>, <code>char</code>, and tuples and arrays made only of Copy things.</p>
+  <pre data-run>fn main() {
+    let x = 5;
+    let y = x;
+    println!("{x} {y}"); // both fine: i32 is Copy
+}</pre>
+
+  <h3>Clone</h3>
+  <p>If you really do want two independent Strings, ask for it with <code>.clone()</code>. It copies the heap data too, so it costs time and memory, and Rust makes you write it so you can see that cost.</p>
+  <pre data-run>fn main() {
+    let s = String::from("bolt");
+    let t = s.clone();
+    println!("{s} {t}");
+}</pre>
+  <div class="callout mnemonic"><span class="tag">Remember this</span><p><b>Copy is a photocopy, Clone is a 3D print.</b> Photocopying a number is instant, so Rust does it for you. 3D printing a whole String takes time and plastic, so you have to press the button.</p></div>
+  <div class="callout gotcha"><span class="tag">Gotcha</span><p><b>Clone-itis.</b> When the compiler complains, it's tempting to add <code>.clone()</code> until it stops. It works, but it hides the real question: who should own this? Reach for a borrow first. Clone when you genuinely need two copies.</p></div>
+
+  <h3>Moving into functions</h3>
+  <pre data-run>fn inspect(part: String) {
+    println!("inspecting {part}");
+} // part is dropped here
+
+fn main() {
+    let arm = String::from("left arm");
+    inspect(arm);
+    // arm has been moved into inspect. Using it here would be E0382.
+}</pre>
+  <p>Passing a String to a function gives it away. When the function ends, it's dropped. Robbie lost an arm that way once. Let's not.</p>
+
+  <h2 id="borrow">5. Borrowing</h2>
+  <p>A <b>reference</b>, written <code>&amp;</code>, lets a function use a value without owning it. The owner keeps it, and the reference is guaranteed never to outlive it.</p>
+  <pre data-run>fn measure(part: &amp;str) -> usize {
+    part.len()
+}
+
+fn main() {
+    let arm = String::from("left arm");
+    let n = measure(&amp;arm);
+    println!("{arm} has {n} letters"); // still ours
+}</pre>
+  <h3>Mutable borrowing</h3>
+  <p>To change something you borrowed, you need a <b>mutable reference</b>, <code>&amp;mut</code>. Three things must line up: the variable is <code>let mut</code>, the call passes <code>&amp;mut</code>, and the parameter type is <code>&amp;mut</code>. Use <code>*</code> to reach the value behind it.</p>
+  <pre data-run>fn recharge(level: &amp;mut u32) {
+    *level += 30;
+}
+
+fn main() {
+    let mut battery = 40;
+    recharge(&amp;mut battery);
+    println!("battery: {battery}");
+}</pre>
+  <div class="callout mnemonic"><span class="tag">Remember this</span><p><b>&amp; is "look, don't touch". &amp;mut is "touch, but you're alone in the room".</b></p></div>
+
+  <h2 id="rule">6. Many readers or one writer</h2>
+  <p>This is the rule the borrow checker enforces. At any moment, a value can have <b>any number of shared references (<code>&amp;</code>)</b> or <b>exactly one mutable reference (<code>&amp;mut</code>)</b>, but not both.</p>
+  <div class="callout mnemonic"><span class="tag">Remember this</span><p><b>Library rule.</b> Lots of people can read the same book. Only one person can write in it, and nobody reads over their shoulder while they do. That rule, checked at compile time, is why safe Rust has no data races.</p></div>
+  <p>A borrow lasts until its <b>last use</b>, not until the closing brace. So reordering lines fixes many errors:</p>
+  <pre data-run>fn main() {
+    let mut parts = vec![String::from("head"), String::from("arm")];
+    let first = &amp;parts[0];
+    println!("first: {first}"); // last use of first
+    parts.push(String::from("tread")); // fine: the borrow is over
+    println!("{parts:?}");
+}</pre>
+  <div class="callout gotcha"><span class="tag">Gotcha</span><p>Put that <code>println!</code> after the <code>push</code> and you get <code>E0502</code>. Why does Rust care? <code>push</code> may need a bigger warehouse slot, so it moves every part somewhere new. <code>first</code> would still point at the old, empty spot. In C++ that's a classic iterator-invalidation bug; in Rust it's a compile error.</p></div>
+
+  <h2 id="slices">7. Slices</h2>
+  <p>A <b>slice</b> borrows a run of elements from something else: a pointer to the start and a length. <code>&amp;str</code> is a slice of a string, <code>&amp;[T]</code> is a slice of an array or vector.</p>
+  <pre data-run>fn main() {
+    let cmd = String::from("rotate left 90");
+    let verb = &amp;cmd[0..6];
+    let rest = &amp;cmd[7..];
+    println!("verb={verb} rest={rest}");
+
+    let readings = [12, 15, 11, 18, 20];
+    let middle = &amp;readings[1..4];
+    println!("{middle:?}");
+}</pre>
+  <p><code>[..4]</code> means "from the start", <code>[7..]</code> means "to the end", and <code>[..]</code> is the whole thing. Two dots still stop short.</p>
+  <div class="callout gotcha"><span class="tag">Gotcha</span><p>String slice positions count <b>bytes</b>, not letters. In <code>"héllo"</code> the é takes two bytes, so <code>&amp;s[0..2]</code> cuts it in half and panics. For plain English text this never bites; for anything else, use <code>.chars()</code>.</p></div>
+
+  <h2 id="str">8. String vs &amp;str</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th></th><th><code>String</code></th><th><code>&amp;str</code></th></tr></thead>
+    <tbody>
+      <tr><td>Owns its text</td><td>Yes, on the heap</td><td>No, it's a borrowed view</td></tr>
+      <tr><td>Can grow</td><td>Yes: <code>push</code>, <code>push_str</code></td><td>No</td></tr>
+      <tr><td>A literal <code>"hi"</code></td><td></td><td>Is a <code>&amp;'static str</code>, stored inside your program</td></tr>
+      <tr><td>Best for</td><td>Building and keeping text</td><td>Function parameters, almost always</td></tr>
+    </tbody>
+  </table></div>
+  <pre data-run>fn shout(text: &amp;str) -> String {
+    format!("{}!", text.to_uppercase())
+}
+
+fn main() {
+    let owned = String::from("low battery");
+    println!("{}", shout(&amp;owned)); // &amp;String becomes &amp;str automatically
+    println!("{}", shout("rust alert")); // a literal already is one
+}</pre>
+  <div class="callout mnemonic"><span class="tag">Remember this</span><p><b>String is the house, &amp;str is the window.</b> You own the house and can build an extension. Through a window you can only look, but every house has windows, so a function that asks for a window works with any house, and with a postcard (a literal) too.</p></div>
+
+  <h2 id="life">9. Lifetimes, gently</h2>
+  <p>A <b>lifetime</b> is the compiler's name for "how long a borrow stays valid". Rust works most of them out on its own. You only write one when a function takes more than one reference and returns a reference, so the compiler needs to know which input the answer is borrowed from.</p>
+  <pre data-run>fn longer&lt;'a&gt;(a: &amp;'a str, b: &amp;'a str) -> &amp;'a str {
+    if a.len() >= b.len() { a } else { b }
+}
+
+fn main() {
+    let x = String::from("servo");
+    let y = String::from("actuator");
+    println!("{}", longer(&amp;x, &amp;y));
+}</pre>
+  <p>Read <code>'a</code> aloud as "for as long as both inputs live". It doesn't change how long anything lives; it just describes it so the compiler can check it. Session 4 goes deeper.</p>
+  <div class="callout gotcha"><span class="tag">Gotcha</span><p>You can never return a reference to something created inside the function. It's dropped when the function ends, so the reference would point at nothing (<code>E0106</code>). Return the owned value instead: <code>fn make() -&gt; String</code>, not <code>-&gt; &amp;String</code>.</p></div>
+
+  <h2 id="errors">10. Error field guide</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Code</th><th>Plain English</th><th>Usual fix</th></tr></thead>
+    <tbody>
+      <tr><td><code>E0382</code></td><td>"You gave that away already."</td><td>Borrow with <code>&amp;</code> instead of moving, or clone if you need two</td></tr>
+      <tr><td><code>E0499</code></td><td>"Two people are writing in the book."</td><td>Finish with the first <code>&amp;mut</code> before making the second</td></tr>
+      <tr><td><code>E0502</code></td><td>"Someone's reading while you're writing."</td><td>Move the reader's last use earlier</td></tr>
+      <tr><td><code>E0594</code> / <code>E0596</code></td><td>"You only borrowed it to look."</td><td><code>let mut</code> the variable and pass <code>&amp;mut</code></td></tr>
+      <tr><td><code>E0106</code></td><td>"That reference would point at nothing."</td><td>Return an owned value</td></tr>
+    </tbody>
+  </table></div>
+  <p>Any time, run <code>rustc --explain E0502</code> (or any code) for a full explanation with examples.</p>
+
+  <h2 id="cheat">Cheat sheet</h2>
+  <div class="tablewrap"><table>
+    <tbody>
+      <tr><td><code>let b = a;</code></td><td>Move (or copy, for Copy types)</td></tr>
+      <tr><td><code>a.clone()</code></td><td>Deep copy, explicit and possibly slow</td></tr>
+      <tr><td><code>&amp;x</code></td><td>Shared borrow: read only, many allowed</td></tr>
+      <tr><td><code>&amp;mut x</code></td><td>Mutable borrow: one at a time, needs <code>let mut x</code></td></tr>
+      <tr><td><code>*r</code></td><td>The value a reference points at</td></tr>
+      <tr><td><code>&amp;s[a..b]</code></td><td>Slice from byte a up to (not including) b</td></tr>
+      <tr><td><code>fn f(s: &amp;str)</code></td><td>Best parameter type for text you only read</td></tr>
+      <tr><td><code>fn f() -&gt; String</code></td><td>Hand ownership back to the caller</td></tr>
+      <tr><td><code>'a</code></td><td>A lifetime: "borrowed for as long as..."</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2 id="practice">Practice questions</h2>
+  <details><summary>1. After <code>let a = String::from("x"); let b = a;</code>, can you print <code>a</code>?</summary><p>No. The String moved into <code>b</code>; using <code>a</code> is E0382.</p></details>
+  <details><summary>2. After <code>let a = 7; let b = a;</code>, can you print <code>a</code>?</summary><p>Yes. Integers are Copy, so <code>b</code> got its own duplicate.</p></details>
+  <details><summary>3. Why can't <code>String</code> be Copy?</summary><p>It owns heap memory. A silent copy would mean two owners freeing the same memory: a double free.</p></details>
+  <details><summary>4. What's wrong with <code>fn recharge(level: &amp;u32) { *level += 1; }</code>?</summary><p>You can't change a value through a shared <code>&amp;</code>. Use <code>&amp;mut u32</code>, and call it with <code>&amp;mut battery</code> on a <code>let mut battery</code>.</p></details>
+  <details><summary>5. Can you have two <code>&amp;</code> borrows of the same value at once? Two <code>&amp;mut</code>?</summary><p>Two <code>&amp;</code>: yes, as many as you like. Two <code>&amp;mut</code>: no, one at a time.</p></details>
+  <details><summary>6. When does a borrow end?</summary><p>At its last use, not at the end of the block.</p></details>
+  <details><summary>7. What is <code>&amp;"robbie"[1..3]</code>?</summary><p><code>"ob"</code>: bytes 1 and 2.</p></details>
+  <details><summary>8. Why is <code>&amp;str</code> a better parameter type than <code>&amp;String</code>?</summary><p>Callers can pass a <code>&amp;String</code>, a slice, or a literal. With <code>&amp;String</code> a literal won't fit.</p></details>
+  <details><summary>9. Why does <code>fn f() -&gt; &amp;String { let s = String::new(); &amp;s }</code> fail?</summary><p><code>s</code> is dropped when <code>f</code> returns, so the reference would dangle. Return <code>String</code>.</p></details>
+  <details><summary>10. What does <code>'a</code> in <code>fn longer&lt;'a&gt;(a: &amp;'a str, b: &amp;'a str) -&gt; &amp;'a str</code> promise?</summary><p>That the returned slice is borrowed from the inputs and won't be used after either of them is gone.</p></details>
+
+  <h2 id="hw">Homework 2: Log Scanner</h2>
+  <p><b>Due:</b> before Session 3. <b>Time:</b> 2 to 3 hours. <b>Folder:</b> <code>homework/hw2-log-scanner</code> in the course repo.</p>
+  <p>Robbie keeps a log. It's full of squeaks, coffee incidents and, for some reason, a wifi password. The menu in <code>src/main.rs</code> is done; replace each <code>todo!()</code> in <code>src/lib.rs</code>. Every function <b>borrows</b> its input.</p>
+  <ol>
+    <li><code>first_word(text: &amp;str) -&gt; &amp;str</code>: everything before the first space, as a slice.</li>
+    <li><code>count_level(log: &amp;str, level: &amp;str) -&gt; usize</code>: lines that start with <code>[LEVEL]</code>.</li>
+    <li><code>longest_line(log: &amp;str) -&gt; &amp;str</code>: the longest line; first one wins a tie; empty log gives <code>""</code>.</li>
+    <li><code>redact(line: &amp;str, secret: &amp;str) -&gt; String</code>: replace the secret with the same number of <code>*</code>.</li>
+    <li><code>shout(line: &amp;mut String)</code>: uppercase it in place and add <code>!</code>.</li>
+    <li><code>summary(log: &amp;str) -&gt; String</code>: <code>"7 lines: 1 ERROR, 2 WARN, 4 INFO"</code>.</li>
+  </ol>
+  <pre data-lang="sh" data-title="check your work">cargo test                      # 8 visible tests
+cargo clippy -- -D warnings     # no warnings allowed
+cargo fmt --check               # formatted the standard way
+cargo run                       # Robbie's log report</pre>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Graded on</th><th>Points</th></tr></thead>
+    <tbody>
+      <tr><td>Builds</td><td>2</td></tr><tr><td>Visible tests pass</td><td>3</td></tr><tr><td>Hidden tests pass (empty logs, ties, secrets that repeat or aren't there)</td><td>3</td></tr>
+      <tr><td>clippy clean</td><td>1</td></tr><tr><td>fmt clean</td><td>1</td></tr>
+    </tbody>
+  </table></div>
+  <div class="callout robbie"><img src="../../assets/img/robbie-face.jpg" alt=""><div><span class="tag">Robbie says</span>
+    <p>Hints: <code>.lines()</code> walks a log line by line, <code>.starts_with()</code> checks a prefix, <code>.replace()</code> builds a new String, <code>"*".repeat(n)</code> makes n stars, and <code>.to_uppercase()</code> returns a new String you can assign back with <code>*line = ...</code>. Also, please actually redact that password. It's my password. I panicked.</p>
+  </div></div>
+
+  <footer class="site"><a href="index.html">Back to Session 2</a> · <a href="quiz.html">Take Quiz 2</a></footer>
+</main>
+
+<script>
+window.ROBBIE_PAGE = {
+  greeting: "Session 2 handbook. Ownership is the big idea today. Tap me any time it gets slippery.",
+  tips: [
+    "Stuck on an ownership error? Say out loud who owns the value on that line. Seriously, out loud.",
+    "Try the practice questions before Quiz 2. Questions 5 and 6 are the ones people miss.",
+    "In the homework, every function borrows. If you find yourself writing String as a parameter type, stop and rethink."
+  ],
+  eli5: [
+    "Owning a toy means it's yours to put away. Borrowing it means you give it back when you're done. Moving it means you gave it away for keeps.",
+    "A slice is like pointing at three words in a sentence. You didn't copy them; you're just pointing.",
+    "&mut is a hall pass. Only one person gets it at a time."
+  ],
+  hype: ["Ownership is the hardest idea in this course, and you're doing it in week one. That's huge.", "The borrow checker is just me, but stricter and with no sense of humor."]
+};
+</script>
+<script src="../../assets/js/course.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="../../assets/js/site.js"></script>
+<script src="../../assets/js/robbie.js"></script>
+<script type="module" src="../../assets/js/robbie3d.js"></script>
+</body>
+</html>

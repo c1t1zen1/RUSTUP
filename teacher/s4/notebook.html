@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Session 4 Teacher Notebook</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=IBM+Plex+Sans:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../docs/assets/css/site.css">
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/" } }</script>
+</head>
+<body data-base="../../docs" data-page="s4-notebook" data-rust="3">
+<header class="topbar" data-crumbs='[{"t": "Course map", "href": "../../docs/index.html"}, {"t": "Session 4", "href": "../../docs/sessions/s4/index.html"}, {"t": "Teacher&#39;s Notebook"}]'></header>
+
+<main class="read">
+  <div class="doc-head">
+    <p class="eyebrow">Teacher's Notebook · Session 4</p>
+    <h1>Teaching Robbie New Tricks</h1>
+    <div class="meta"><span>Session length: 2.5 hours</span><span>Prep: 25 minutes</span><span>Contains all answers</span></div>
+  </div>
+
+  <nav class="toc" aria-label="Contents"><b>Contents</b><ol>
+    <li><a href="#goals">Learning goals</a></li><li><a href="#prep">Before class</a></li><li><a href="#plan">Run of show</a></li>
+    <li><a href="#deep">Deeper notes by topic</a></li><li><a href="#mistakes">Mistakes to expect</a></li><li><a href="#lab">Lab solution</a></li>
+    <li><a href="#hw">Homework solution and grading</a></li><li><a href="#key">Quiz 4 answer key</a></li><li><a href="#extend">Extensions</a></li>
+  </ol></nav>
+
+  <h2 id="goals">Learning goals</h2>
+  <p>By the end of Session 4 a student can:</p>
+  <ol>
+    <li>Use <code>Vec</code> and <code>HashMap</code>, including <code>get</code>, sorting, and the entry API, and explain why pushing while borrowing fails.</li>
+    <li>Define a trait with required and default methods, implement it for several types, and derive the standard traits.</li>
+    <li>Write generic functions and structs with trait bounds and <code>where</code> clauses.</li>
+    <li>Choose between a generic and <code>Box&lt;dyn Trait&gt;</code>.</li>
+    <li>Write closures, and tell <code>Fn</code>, <code>FnMut</code> and <code>FnOnce</code> apart.</li>
+    <li>Replace loops with iterator chains, and explain laziness.</li>
+    <li>Read and write lifetime annotations on functions and structs.</li>
+  </ol>
+
+  <h2 id="prep">Before class</h2>
+  <ul>
+    <li>Look at the Checkpoint 1 scores. Spend the first ten minutes on whichever session the room missed most (it's usually ownership).</li>
+    <li>Grade Homework 3. Find one <code>run_script</code> that counted lines correctly and one that forgot blank lines.</li>
+    <li>Run <code>cargo test</code> in <code>labs/lab4-mission-planner</code> once so you've seen the nine failing tests.</li>
+    <li>Draw the Vec picture on the board: pointer, length and capacity on the stack, items on the heap. Slide 4 depends on it.</li>
+  </ul>
+
+  <h2 id="plan">Run of show</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Time</th><th>Slides</th><th>Do</th></tr></thead>
+    <tbody>
+      <tr><td>0:00</td><td>1 to 2</td><td>Intro, Robbie at half rust, Homework 3 and Checkpoint 1 review (15 minutes).</td></tr>
+      <tr><td>0:15</td><td>3 to 6</td><td><code>Vec</code>, the E0502 push-while-borrowing demo, <code>HashMap</code>, the entry API.</td></tr>
+      <tr><td>0:30</td><td>7 to 12</td><td>Traits, default methods, the E0046 demo, traits as parameters, derive, Display.</td></tr>
+      <tr><td>0:55</td><td>13 to 16</td><td>Generics, the E0369 bound demo, generic structs, trait objects.</td></tr>
+      <tr><td>1:10</td><td></td><td>Break, 10 minutes.</td></tr>
+      <tr><td>1:20</td><td>17 to 21</td><td>Closures, Fn/FnMut/FnOnce, iterators, laziness, the adapter toolbox.</td></tr>
+      <tr><td>1:40</td><td>22 to 24</td><td>Lifetimes: E0106, the fix, E0597, struct lifetimes. Error field guide.</td></tr>
+      <tr><td>1:50</td><td>25</td><td>Lab: Mission Planner, 30 minutes. Leave slide 24 up on a second screen.</td></tr>
+      <tr><td>2:20</td><td>26 to 27</td><td>Quiz 4 (10 minutes), Homework 4 kickoff, recap.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2 id="deep">Deeper notes by topic</h2>
+  <h3>Vec and HashMap</h3>
+  <p>The E0502 demo is the most important minute of the first hour: it shows the borrow checker preventing a real bug (iterator invalidation in C++). Have students fix it two ways. For HashMap, stress that iteration order is random per run, by design, to resist hash-flooding attacks. Tests that compare a printed HashMap will flake; sort first or use <code>BTreeMap</code>.</p>
+  <h3>Traits</h3>
+  <p>Traits are the session's centre. Map them to what the room knows: interfaces (Java, C#, Go), protocols (Swift), duck typing checked at compile time (Python). There is no inheritance; default methods plus traits cover most of what inheritance is used for. The orphan rule (you can implement a trait for a type only if you own one of them) will come up if anyone tries <code>impl Display for Vec&lt;T&gt;</code>; one sentence is enough.</p>
+  <h3>Generics and trait objects</h3>
+  <p>Monomorphization means generics are zero-cost but grow the binary; <code>dyn</code> means one copy of the code and a vtable lookup per call. Neither is "better". The homework deliberately uses both so students see where each fits. <code>Box</code> is used before Session 5 explains it; "a pointer to something on the heap" is all they need today.</p>
+  <h3>Closures</h3>
+  <p>The capture rules mirror ownership: a closure borrows what it reads, mutably borrows what it changes, and moves what it consumes. <code>move</code> forces ownership. Session 5's <code>thread::spawn(move || ...)</code> is the payoff, so plant it now.</p>
+  <h3>Iterators</h3>
+  <p>Show the <code>Iterator</code> trait itself: one required method, <code>next(&amp;mut self) -&gt; Option&lt;Self::Item&gt;</code>, and dozens of default methods. That ties traits, default methods and Option together nicely. The <code>|&amp;&amp;r|</code> pattern in <code>filter</code> confuses everyone; <code>.copied()</code> earlier in the chain makes it go away.</p>
+  <h3>Lifetimes</h3>
+  <p>The key sentence: a lifetime annotation describes, it never extends. Elision rules cover most code. If a student writes <code>'static</code> to silence an error, that's usually wrong; ask them which input the answer comes from.</p>
+
+  <h2 id="mistakes">Mistakes to expect</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>You'll see</th><th>What's going on</th><th>Nudge</th></tr></thead>
+    <tbody>
+      <tr><td>Sorting a <code>Vec&lt;f64&gt;</code> fails (E0277)</td><td><code>f64</code> isn't <code>Ord</code> because of NaN</td><td><code>sort_by(|a, b| a.total_cmp(b))</code></td></tr>
+      <tr><td><code>todo_list</code> sorted the wrong way</td><td><code>a.cmp(&amp;b)</code> is ascending</td><td>"Which one should come first? Then put it on the left of <code>cmp</code>."</td></tr>
+      <tr><td><code>|&amp;&amp;r|</code> confusion in <code>filter</code></td><td><code>filter</code> gets a reference to each item, and <code>iter()</code> already gives references</td><td>Add <code>.copied()</code> before the filter, or write <code>|r| **r &lt; 50</code></td></tr>
+      <tr><td>HashMap test passes once, then fails</td><td>Comparing iteration order</td><td>"Does a HashMap have an order?"</td></tr>
+      <tr><td><code>Garage::park</code> pushes, then checks the budget</td><td>Checks in the wrong order</td><td>"A refused bot changes nothing. Check, then change."</td></tr>
+      <tr><td>Duplicate check misses "zippy" vs "Zippy"</td><td>Plain <code>==</code></td><td><code>eq_ignore_ascii_case</code></td></tr>
+      <tr><td><code>'static</code> added to make an error go away</td><td>Hiding the real question</td><td>"Which input does the answer borrow from?"</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2 id="lab">Lab solution: Robbie's Mission Planner</h2>
+  <p>The full file is <code>teacher/s4/lab4-solution-lib.rs</code>; drop it in as <code>labs/lab4-mission-planner/src/lib.rs</code> and all nine tests pass, with clippy and fmt clean.</p>
+  <pre data-lang="rust" data-title="teacher/s4/lab4-solution-lib.rs">//! Lab 4: Robbie's Mission Planner.
+//!
+//! Robbie has a to-do list for the studio and only so much battery. You'll use
+//! iterators, closures and a HashMap to turn the list into a plan.
+use std::collections::HashMap;
+
+/// One job on Robbie's list.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Task {
+    pub name: String,
+    pub room: String,
+    pub minutes: u32,
+    /// 1 (whenever) to 5 (right now)
+    pub priority: u8,
+    pub done: bool,
+}
+
+impl Task {
+    /// A shortcut for building tasks in tests and in main.
+    pub fn new(name: &amp;str, room: &amp;str, minutes: u32, priority: u8) -&gt; Task {
+        Task {
+            name: name.to_string(),
+            room: room.to_string(),
+            minutes,
+            priority,
+            done: false,
+        }
+    }
+}
+
+/// Step 1. The total minutes of every task that isn't done yet.
+pub fn minutes_left(tasks: &amp;[Task]) -&gt; u32 {
+    tasks.iter().filter(|t| !t.done).map(|t| t.minutes).sum()
+}
+
+/// Step 2. The tasks that aren't done, most urgent first.
+/// Higher priority comes first; for equal priority, shorter tasks first;
+/// for equal priority and minutes, alphabetical by name.
+pub fn todo_list(tasks: &amp;[Task]) -&gt; Vec&lt;&amp;Task&gt; {
+    let mut list: Vec&lt;&amp;Task&gt; = tasks.iter().filter(|t| !t.done).collect();
+    list.sort_by(|a, b| {
+        b.priority
+            .cmp(&amp;a.priority)
+            .then(a.minutes.cmp(&amp;b.minutes))
+            .then(a.name.cmp(&amp;b.name))
+    });
+    list
+}
+
+/// Step 3. Minutes still to do in each room. Rooms with nothing left to do
+/// don't appear at all.
+pub fn minutes_by_room(tasks: &amp;[Task]) -&gt; HashMap&lt;String, u32&gt; {
+    let mut rooms = HashMap::new();
+    for t in tasks.iter().filter(|t| !t.done) {
+        *rooms.entry(t.room.clone()).or_insert(0) += t.minutes;
+    }
+    rooms
+}
+
+/// Step 4. Plan a shift: walk the todo_list in order and take every task that
+/// still fits in the minutes left. A task that doesn't fit is skipped, and the
+/// planner keeps looking for shorter ones. Returns the names in the order taken.
+pub fn plan(tasks: &amp;[Task], budget: u32) -&gt; Vec&lt;&amp;str&gt; {
+    let mut left = budget;
+    let mut names = Vec::new();
+    for t in todo_list(tasks) {
+        if t.minutes &lt;= left {
+            left -= t.minutes;
+            names.push(t.name.as_str());
+        }
+    }
+    names
+}
+
+/// Step 5. The first task in `room` that isn't done, if there is one.
+/// The answer borrows from `tasks`, not from `room`, and the lifetime says so.
+pub fn next_in_room&lt;'a&gt;(tasks: &amp;'a [Task], room: &amp;str) -&gt; Option&lt;&amp;'a Task&gt; {
+    tasks.iter().find(|t| !t.done &amp;&amp; t.room == room)
+}
+</pre>
+  <p>Praise: one-chain answers for steps 1 and 5; <code>.then()</code> for tie-breakers; using <code>todo_list</code> inside <code>plan</code> instead of sorting twice. Redirect: cloning <code>Task</code>s into the result of <code>todo_list</code> (the signature asks for references), and <code>break</code> in <code>plan</code> at the first task that doesn't fit (the doc says keep looking for shorter ones; the step 4 test checks it).</p>
+
+  <h2 id="hw">Homework 4 solution and grading</h2>
+  <p>Reference files are in <code>teacher/s4/hw4-solution/</code>: copy <code>bots.rs</code>, <code>garage.rs</code> and <code>lib.rs</code> into a student's <code>src/</code> to check the tests.</p>
+  <pre data-lang="rust" data-title="bots.rs: the three Bot impls">/// Rules for Robbie:
+/// - name is "Robbie", kind is "studio robot"
+/// - power is 120 W, plus 1 W for every percent of rust (rusty joints work harder)
+/// - label: the usual label, but when he is 50% rust or more, add " squeak" at the end,
+///   like "Robbie (studio robot, 170 W) squeak"
+impl Bot for Robbie {
+    fn name(&amp;self) -&gt; &amp;str {
+        "Robbie"
+    }
+    fn kind(&amp;self) -&gt; &amp;'static str {
+        "studio robot"
+    }
+    fn power(&amp;self) -&gt; u32 {
+        120 + u32::from(self.rust)
+    }
+    fn label(&amp;self) -&gt; String {
+        let plain = format!("{} ({}, {} W)", self.name(), self.kind(), self.power());
+        if self.rust &gt;= 50 {
+            plain + " squeak"
+        } else {
+            plain
+        }
+    }
+}
+
+/// Rules for a drone: kind is "drone", power is 15 W per rotor.
+impl Bot for Drone {
+    fn name(&amp;self) -&gt; &amp;str {
+        &amp;self.name
+    }
+    fn kind(&amp;self) -&gt; &amp;'static str {
+        "drone"
+    }
+    fn power(&amp;self) -&gt; u32 {
+        15 * self.rotors
+    }
+}
+
+/// Rules for a vacuum: kind is "vacuum", power is 40 W, or 55 W when the bin is full.
+impl Bot for Vacuum {
+    fn name(&amp;self) -&gt; &amp;str {
+        &amp;self.name
+    }
+    fn kind(&amp;self) -&gt; &amp;'static str {
+        "vacuum"
+    }
+    fn power(&amp;self) -&gt; u32 {
+        if self.bin_full { 55 } else { 40 }
+    }
+}
+</pre>
+  <pre data-lang="rust" data-title="garage.rs: park, unpark and friends">    /// Park a bot.
+    /// - Names are compared ignoring case: "zippy" and "Zippy" are the same bot.
+    ///   A name that's already parked gives `Duplicate`, with the new bot's name.
+    /// - A bot that needs more than `available()` watts gives `OverBudget`.
+    ///   Using exactly the watts left is fine.
+    /// - The name check comes first.
+    /// - A refused bot changes nothing.
+    pub fn park(&amp;mut self, bot: Box&lt;dyn Bot&gt;) -&gt; Result&lt;(), GarageError&gt; {
+        if self.position(bot.name()).is_some() {
+            return Err(GarageError::Duplicate(bot.name().to_string()));
+        }
+        let available = self.available();
+        if bot.power() &gt; available {
+            return Err(GarageError::OverBudget {
+                needed: bot.power(),
+                available,
+            });
+        }
+        self.bots.push(bot);
+        Ok(())
+    }
+
+    /// Take a bot out of the garage by name (ignoring case) and hand it back.
+    /// The other bots keep their order. No such bot gives `NotFound` with the name asked for.
+    pub fn unpark(&amp;mut self, name: &amp;str) -&gt; Result&lt;Box&lt;dyn Bot&gt;, GarageError&gt; {
+        let i = self
+            .position(name)
+            .ok_or_else(|| GarageError::NotFound(name.to_string()))?;
+        Ok(self.bots.remove(i))
+    }
+
+    /// The names of the parked bots, in alphabetical order.
+    pub fn names(&amp;self) -&gt; Vec&lt;&amp;str&gt; {
+        let mut names: Vec&lt;&amp;str&gt; = self.bots.iter().map(|b| b.name()).collect();
+        names.sort();
+        names
+    }
+
+    /// How many bots of each kind are parked, like {"drone": 2, "vacuum": 1}.
+    pub fn count_by_kind(&amp;self) -&gt; HashMap&lt;&amp;'static str, usize&gt; {
+        let mut counts = HashMap::new();
+        for b in &amp;self.bots {
+            *counts.entry(b.kind()).or_insert(0) += 1;
+        }
+        counts
+    }
+
+    /// Labels of the bots drawing at least `watts`, in the order they were parked.
+    pub fn power_hogs(&amp;self, watts: u32) -&gt; Vec&lt;String&gt; {
+        self.bots
+            .iter()
+            .filter(|b| b.power() &gt;= watts)
+            .map(|b| b.label())
+            .collect()
+    }
+
+    fn position(&amp;self, name: &amp;str) -&gt; Option&lt;usize&gt; {
+        self.bots
+            .iter()
+            .position(|b| b.name().eq_ignore_ascii_case(name))
+    }
+}</pre>
+  <pre data-lang="rust" data-title="lib.rs: the generic helpers">/// The largest item in a slice, or None when it's empty.
+/// Works for any type that can be compared and copied: numbers, chars, bools.
+pub fn largest&lt;T: PartialOrd + Copy&gt;(items: &amp;[T]) -&gt; Option&lt;T&gt; {
+    let mut best = *items.first()?;
+    for &amp;item in items {
+        if item &gt; best {
+            best = item;
+        }
+    }
+    Some(best)
+}
+
+/// The bot that draws the most power from a slice of one kind of bot.
+/// When two draw the same, the first one wins. None for an empty slice.
+pub fn hungriest&lt;B: Bot&gt;(bots: &amp;[B]) -&gt; Option&lt;&amp;B&gt; {
+    let mut best = bots.first()?;
+    for b in bots {
+        if b.power() &gt; best.power() {
+            best = b;
+        }
+    }
+    Some(best)
+}
+</pre>
+  <h3>Grading, out of 10</h3>
+  <pre data-lang="sh" data-title="terminal">cd homework/hw4-bot-garage                   # in the student's copy
+cp ../../teacher/grading/hw4-hidden-tests.rs tests/hidden.rs
+cargo build                                  # 2 points
+cargo test --test visible                    # 3 points (8 tests)
+cargo test --test hidden                     # 3 points (9 tests: 1/3 per 3 passing)
+cargo clippy -- -D warnings                  # 1 point
+cargo fmt --check                            # 1 point</pre>
+  <p>The hidden tests check: the squeak at exactly 49 and 50; a full bin and a zero-rotor drone; duplicates ignoring case and checked before the budget; exactly using up the budget; refused bots changing nothing; unpark freeing power and keeping order, and <code>NotFound</code> after; an empty garage; <code>largest</code> on empty, negative, float and single-item input; and <code>hungriest</code> ties going to the first bot.</p>
+
+  <h2 id="key">Quiz 4 answer key</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>#</th><th>Answer</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><b>None</b></td><td>get returns an Option, so a missing index is None. parts[10] is the one that panics.</td></tr>
+      <tr><td>2</td><td><b>Error E0502: can't push while first borrows readings</b></td><td>push needs &amp;mut readings, but first is a shared borrow that's still used afterwards. Push may move the items, so Rust refuses.</td></tr>
+      <tr><td>3</td><td><b>or_insert</b></td><td>entry finds the slot, or_insert(0) fills it if it's new and gives back a &amp;mut to the count.</td></tr>
+      <tr><td>4</td><td><b>Only name</b></td><td>greet has a default body, so it's optional. name has none, so leaving it out is E0046.</td></tr>
+      <tr><td>5</td><td><b>No: T has no bound that allows &gt;</b></td><td>The body compares two T values, so T needs PartialOrd. Without the bound it's E0369.</td></tr>
+      <tr><td>6</td><td><b>fn show&lt;T: Speak&gt;(x: &amp;T)</b></td><td>impl Trait in an argument is shorthand for a generic with that bound. It's decided at compile time.</td></tr>
+      <tr><td>7</td><td><b>Vec&lt;Box&lt;dyn Bot&gt;&gt;</b></td><td>A Vec holds one type. Box&lt;dyn Bot&gt; is one type that can point at any bot.</td></tr>
+      <tr><td>8</td><td><b>Hash, with PartialEq and Eq</b></td><td>Keys must be hashed and compared, so they need Hash and Eq (which needs PartialEq).</td></tr>
+      <tr><td>9</td><td><b>5</b></td><td>The closure captures squeaks and changes it, so it's FnMut. 4 / 2 + 6 / 2 = 5.</td></tr>
+      <tr><td>10</td><td><b>[2, 6, 10] or [2,6,10]</b></td><td>filter keeps the odd numbers 1, 3 and 5, then map doubles them.</td></tr>
+      <tr><td>11</td><td><b>2</b></td><td>Iterators are lazy. take(2) only asks for two items, so the closure runs twice.</td></tr>
+      <tr><td>12</td><td><b>The compiler can't tell whether the result borrows from a or b, so it needs a lifetime</b></td><td>Two references in and one out: you say which inputs the answer borrows from with &lt;'a&gt;. This is E0106.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2 id="extend">Extensions for fast students</h2>
+  <ul>
+    <li>Lab: <code>rooms_in_order</code>, busiest room first, as a <code>Vec&lt;(String, u32)&gt;</code>. Then a <code>plan</code> that tries every order and keeps the one that fits the most priority points (hint: it's slow, and that's the point).</li>
+    <li>Homework: implement <code>Iterator</code> for a <code>Countdown(u32)</code> struct, and use it with <code>.rev()</code>. What error do you get, and why? (It needs <code>DoubleEndedIterator</code>.)</li>
+    <li>Make <code>Garage</code> generic over a trait of its own, <code>PowerSource</code>, with a battery and a mains supply, so the budget comes from the source.</li>
+    <li>Write <code>fn group_by_kind(&amp;self) -&gt; BTreeMap&lt;&amp;'static str, Vec&lt;&amp;str&gt;&gt;</code> with <code>or_insert_with(Vec::new)</code>.</li>
+  </ul>
+
+  <footer class="site"><a href="../../docs/sessions/s4/index.html">Session 4 hub</a> · <a href="../../docs/sessions/s4/presentation.html">Slides</a> · <a href="../../docs/sessions/s4/handbook.html">Handbook</a></footer>
+</main>
+
+<script>
+window.ROBBIE_PAGE = {
+  "greeting": "Teacher's notebook for Session 4. All the answers are here, so keep it off the projector.",
+  "tips": [
+    "The E0502 Vec demo is worth slowing down for. It's a real C++ bug, caught at compile time.",
+    "Plant move closures today. Session 5 needs them for threads."
+  ],
+  "eli5": [
+    "Traits are skills, generics are stencils, iterators are conveyor belts."
+  ],
+  "hype": [
+    "Session 4 is the one people remember as the moment Rust clicked."
+  ]
+};
+</script>
+<script src="../../docs/assets/js/course.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="../../docs/assets/js/site.js"></script>
+<script src="../../docs/assets/js/robbie.js"></script>
+<script type="module" src="../../docs/assets/js/robbie3d.js"></script>
+</body>
+</html>

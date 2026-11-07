@@ -1,0 +1,698 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Building Blocks Slides</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=IBM+Plex+Sans:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../assets/css/site.css">
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/" } }</script>
+</head>
+<body data-base="../.." data-page="s3-presentation" data-rust="2">
+<header class="topbar" data-crumbs='[{"t": "Course map", "href": "../../index.html"}, {"t": "Session 3", "href": "index.html"}, {"t": "Presentation"}]'></header>
+
+<main class="wrap deck">
+
+<section class="slide" data-robbie="Session 3. I&#x27;m about a third rust now, mostly streaks. Today we build real types. Maybe one of them can be a raincoat." data-emote="wave">
+  <p class="eyebrow">Session 3 · Week 2 · Monday</p>
+  <h2 style="font-size:clamp(2.6rem,8vw,5rem)">Building Blocks</h2>
+  <p class="big-line">Structs, enums, <code>match</code>, <code>Option</code>, <code>Result</code> and <code>?</code>: how Rust models the world, and how it handles things going wrong.</p>
+  <p class="muted">Press <kbd>→</kbd> to go on, <kbd>N</kbd> for speaker notes.</p>
+  <aside class="speaker">Point at Robbie: he's about a third rust now, with streaks running down from every seam where the rain sat. Running joke for today: by the end of the session we'll have the types to describe exactly how broken he is, and an error type for when he refuses to move.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">Today's flight plan</p>
+  <h2>Two and a half hours</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Time</th><th>Block</th></tr></thead>
+    <tbody>
+      <tr><td>0:00</td><td>Homework 2 review: the log scanner and its sneaky password</td></tr>
+      <tr><td>0:15</td><td>Structs and <code>impl</code></td></tr>
+      <tr><td>0:35</td><td>Enums that carry data, and <code>match</code></td></tr>
+      <tr><td>1:00</td><td>Break (Robbie stands under the heat lamp)</td></tr>
+      <tr><td>1:10</td><td><code>Option</code>, <code>Result</code> and the <code>?</code> operator</td></tr>
+      <tr><td>1:30</td><td>Modules, and the error field guide</td></tr>
+      <tr><td>1:40</td><td>Lab: Robbie's Command Parser</td></tr>
+      <tr><td>2:15</td><td>Quiz 3, homework kickoff, Checkpoint 1 handed out</td></tr>
+    </tbody>
+  </table></div>
+  <aside class="speaker">Homework 2 review: show one redact() that used replace with "*".repeat(secret.len()), and ask what happens with an empty secret (replace("", ...) inserts stars between every character). That's exactly the kind of edge case today's error handling is for. Checkpoint 1 is a take-home review of Sessions 1 to 3, due before Session 4.</aside>
+</section>
+
+<section class="slide" data-robbie="A tuple is a box of mystery numbers. A struct is a box with labels on it. I prefer labels. I&#x27;ve lost three knees to mystery boxes.">
+  <p class="eyebrow">Why build types?</p>
+  <h2>Name things, or forget what they mean</h2>
+  <pre data-run>struct Robot {
+    name: String,
+    battery: u8,
+    x: i32,
+    y: i32,
+}
+
+fn main() {
+    // a tuple works, but which number is which?
+    let mystery = (87, 3, -2);
+    println!("{mystery:?}");
+
+    // a struct says it out loud
+    let robbie = Robot {
+        name: String::from("Robbie"),
+        battery: 87,
+        x: 3,
+        y: -2,
+    };
+    println!(
+        "{} is at ({}, {}) with {}% battery",
+        robbie.name, robbie.x, robbie.y, robbie.battery
+    );
+}</pre>
+  <p>A tuple is fine for two or three things that obviously belong together. The moment you have to remember "the second number is x", give it a name. A <b>struct</b> is a named bundle of named fields.</p>
+  <aside class="speaker">Ask the room what (87, 3, -2) means. Get three different answers. That's the argument for structs. C folks: yes, it's a C struct. Python folks: it's a class with fixed fields and no inheritance.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">Structs</p>
+  <h2>Make one, change one, print one</h2>
+  <pre data-run>#[derive(Debug)]
+struct Robot {
+    name: String,
+    battery: u8,
+}
+
+fn main() {
+    let mut robbie = Robot {
+        name: String::from("Robbie"),
+        battery: 40,
+    };
+    robbie.battery += 25; // the whole struct is mut, so every field is
+    println!("{robbie:?}");
+    println!("{robbie:#?}"); // pretty, one field per line
+    println!("{} is at {}%", robbie.name, robbie.battery);
+}</pre>
+  <ul>
+    <li>Mutability belongs to the <b>binding</b>, not the field: <code>let mut robbie</code> makes every field changeable.</li>
+    <li><code>#[derive(Debug)]</code> asks the compiler to write the printing code for <code>{:?}</code> and <code>{:#?}</code>.</li>
+  </ul>
+  <aside class="speaker">There's no way to mark one field mut and another not. If you need that, you'll use private fields and methods, which is three slides away. derive is a macro that writes trait implementations for you; traits get their own session next week.</aside>
+</section>
+
+<section class="slide" data-robbie="&amp;self looks, &amp;mut self touches, self takes. Say it with me. Louder. My hearing is rusting too." data-emote="think">
+  <p class="eyebrow">Methods</p>
+  <h2><code>impl</code>: teach the struct some tricks</h2>
+  <pre data-run>struct Robot {
+    name: String,
+    battery: u8,
+}
+
+impl Robot {
+    // an associated function: no self, called as Robot::new
+    fn new(name: &amp;str) -&gt; Robot {
+        Robot {
+            name: name.to_string(),
+            battery: 100,
+        }
+    }
+
+    // &amp;self: look but don't touch
+    fn is_tired(&amp;self) -&gt; bool {
+        self.battery &lt; 20
+    }
+
+    // &amp;mut self: allowed to change fields
+    fn work(&amp;mut self, hours: u8) {
+        self.battery = self.battery.saturating_sub(hours * 15);
+    }
+}
+
+fn main() {
+    let mut r = Robot::new("Robbie");
+    r.work(6);
+    println!("{} tired? {} ({}%)", r.name, r.is_tired(), r.battery);
+}</pre>
+  <div class="callout mnemonic"><span class="tag">Remember this</span><p><b><code>&amp;self</code> looks, <code>&amp;mut self</code> touches, <code>self</code> takes.</b> It's Session 2's ownership rules, wearing a method's hat. No <code>self</code> at all means an associated function, called with <code>::</code>, like <code>Robot::new</code>.</p></div>
+  <aside class="speaker">Point out saturating_sub: it stops at 0 instead of underflowing a u8. Ask what would happen with plain subtraction (a panic in debug builds: "attempt to subtract with overflow"). new is just a convention; Rust has no constructors.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">Struct shortcuts</p>
+  <h2>Less typing, same meaning</h2>
+  <pre data-run>#[derive(Debug, Clone)]
+struct Part {
+    name: String,
+    rust: u8,
+    shiny: bool,
+}
+
+#[derive(Debug)]
+struct Meters(f64); // a tuple struct: a named wrapper
+
+fn make_part(name: String, rust: u8) -&gt; Part {
+    Part {
+        name,
+        rust,
+        shiny: rust == 0,
+    } // field init shorthand
+}
+
+fn main() {
+    let elbow = make_part(String::from("elbow"), 40);
+    let knee = Part {
+        name: String::from("knee"),
+        ..elbow.clone()
+    }; // copy the rest
+    let reach = Meters(1.2);
+    println!("{elbow:?}");
+    println!(
+        "{} has {}% rust, shiny: {}",
+        knee.name, knee.rust, knee.shiny
+    );
+    println!("reach {} m", reach.0);
+}</pre>
+  <ul>
+    <li><b>Field init shorthand:</b> <code>Part { name, rust, .. }</code> when a variable has the same name as the field.</li>
+    <li><b>Update syntax:</b> <code>..elbow.clone()</code> fills in every field you didn't list.</li>
+    <li><b>Tuple structs</b> like <code>Meters(f64)</code> give a plain number a meaning, so you can't pass meters where seconds were expected.</li>
+  </ul>
+  <aside class="speaker">Why clone in the update syntax? Because ..elbow would move elbow's String fields into knee. Here we only take rust and shiny, which are Copy, but name isn't, so without clone the borrow checker would object if we used elbow again. Good Session 2 callback if the room is quick.</aside>
+</section>
+
+<section class="slide" data-robbie="An enum is a multiple choice question where the compiler knows every possible answer.">
+  <p class="eyebrow">Enums</p>
+  <h2>One of a fixed set of choices</h2>
+  <pre data-run>#[derive(Debug, Clone, Copy, PartialEq)]
+enum Direction {
+    North,
+    East,
+    South,
+    West,
+}
+
+fn opposite(d: Direction) -&gt; Direction {
+    match d {
+        Direction::North =&gt; Direction::South,
+        Direction::East =&gt; Direction::West,
+        Direction::South =&gt; Direction::North,
+        Direction::West =&gt; Direction::East,
+    }
+}
+
+fn main() {
+    let facing = Direction::East;
+    println!("{facing:?} turns around to {:?}", opposite(facing));
+}</pre>
+  <p>An <b>enum</b> lists every possible value up front. A <code>Direction</code> is North, East, South or West, and nothing else. No typos, no "nort", no magic numbers.</p>
+  <aside class="speaker">Compare to C enums, which are just ints you can do arithmetic on, and to Python, where you'd use strings and hope. Here the compiler knows the full list, which is what makes match powerful on the next slides.</aside>
+</section>
+
+<section class="slide" data-robbie="Enums with data are my favorite Rust feature. Don&#x27;t tell the borrow checker. It gets jealous." data-emote="happy">
+  <p class="eyebrow">Enums with data</p>
+  <h2>Each choice can carry its own luggage</h2>
+  <pre data-run>#[derive(Debug)]
+enum Command {
+    Forward(u32),          // one number
+    Turn { degrees: i32 }, // a named field
+    Say(String),           // owns some text
+    Charge,                // no data at all
+}
+
+fn describe(cmd: &amp;Command) -&gt; String {
+    match cmd {
+        Command::Forward(n) =&gt; format!("roll {n} squares"),
+        Command::Turn { degrees } =&gt; format!("turn {degrees} degrees"),
+        Command::Say(text) =&gt; format!("say '{text}'"),
+        Command::Charge =&gt; String::from("plug in"),
+    }
+}
+
+fn main() {
+    let plan = [
+        Command::Say(String::from("hi")),
+        Command::Forward(3),
+        Command::Turn { degrees: -90 },
+        Command::Charge,
+    ];
+    for cmd in &amp;plan {
+        println!("{}", describe(cmd));
+    }
+}</pre>
+  <p>This is the big one. Each variant can hold different data: a number, named fields, a <code>String</code>, or nothing. One type, <code>Command</code>, covers everything Robbie can be told to do. Today's lab is built on exactly this.</p>
+  <aside class="speaker">This is the feature people from other languages fall in love with. In Java or Python you'd write a class hierarchy or a dict with a "type" key. Here it's one line per variant, and match pulls the data back out safely. Mention the name for it: an algebraic data type, or "sum type".</aside>
+</section>
+
+<section class="slide" data-robbie="Forgot a case? The compiler noticed. It always notices. It&#x27;s a little unsettling, honestly." data-emote="look">
+  <p class="eyebrow">match</p>
+  <h2>Every case, or it won't compile</h2>
+  <p class="muted">Fails on purpose (E0004). Press Run and read the error.</p>
+  <pre data-run>enum Light {
+    Green,
+    Amber,
+    Red,
+}
+
+fn action(light: Light) -&gt; &amp;'static str {
+    match light {
+        Light::Green =&gt; "go",
+        Light::Red =&gt; "stop",
+        // forgot Amber!
+    }
+}
+
+fn main() {
+    println!("{}", action(Light::Amber));
+}</pre>
+  <p><code>match</code> is <b>exhaustive</b>: you must handle every variant. Add the <code>Light::Amber</code> arm and it compiles. This is why adding a new variant later is safe: the compiler finds every <code>match</code> you forgot to update.</p>
+  <div class="callout mnemonic"><span class="tag">Remember this</span><p><b>match is a sorting machine with no floor.</b> Every value has to land in a bin. If one could fall through, the compiler won't let you switch the machine on.</p></div>
+  <aside class="speaker">Run it, read E0004 together, then fix it live. Then ask: what if we add Light::Flashing next year? Every match on Light becomes a compile error until it's handled. Compare to a switch statement with a default that silently swallows the new case.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">Patterns</p>
+  <h2>match does more than names</h2>
+  <pre data-run>fn mood(battery: u8) -&gt; &amp;'static str {
+    match battery {
+        0 =&gt; "asleep",
+        1..=19 =&gt; "grumpy",
+        20..=79 =&gt; "fine",
+        80..=99 =&gt; "chipper",
+        100 =&gt; "UNSTOPPABLE",
+        _ =&gt; "impossible", // u8 goes up to 255, so we still need a catch-all
+    }
+}
+
+fn weather(rain_mm: u32, windy: bool) -&gt; &amp;'static str {
+    match (rain_mm, windy) {
+        (0, false) =&gt; "lovely",
+        (0, true) =&gt; "breezy",
+        (r, _) if r &gt; 20 =&gt; "stay inside, Robbie",
+        _ =&gt; "drizzly",
+    }
+}
+
+fn main() {
+    for b in [0, 12, 55, 90, 100] {
+        println!("{b}% -&gt; {}", mood(b));
+    }
+    println!("{}", weather(35, false));
+}</pre>
+  <ul>
+    <li><b>Ranges</b> like <code>1..=19</code>, and <code>_</code> to catch everything else.</li>
+    <li><b>Tuples</b> to match two things at once.</li>
+    <li><b>Bindings and guards:</b> <code>(r, _) if r &gt; 20</code> names the value and adds a condition.</li>
+  </ul>
+  <aside class="speaker">Arms are tried top to bottom, first match wins. Ask why the _ arm is needed in mood when the arms seem to cover 0 to 100 (u8 goes to 255). Swap two arms to show unreachable-pattern warnings.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">if let and let else</p>
+  <h2>When you only care about one shape</h2>
+  <pre data-run>fn main() {
+    let spare_part: Option&lt;&amp;str&gt; = Some("left knee");
+
+    // if let: only care about one pattern
+    if let Some(part) = spare_part {
+        println!("Fitting the {part}");
+    }
+
+    // let else: get the value or leave early
+    let Some(part) = spare_part else {
+        println!("No spare. Robbie limps on.");
+        return;
+    };
+    println!("Still holding the {part}");
+}</pre>
+  <p><code>if let</code> is a one-armed <code>match</code>. <code>let ... else</code> is its opposite: unwrap the value you need, or bail out early. It keeps the happy path flat instead of nested.</p>
+  <aside class="speaker">let else arrived in Rust 1.65. The else block has to leave (return, break, continue or panic), because after it the variable must exist. while let is the looping cousin; it's in the handbook.</aside>
+</section>
+
+<section class="slide" data-robbie="No null in Rust. Just Some and None. I wish my spare parts drawer worked like that. Right now it&#x27;s mostly None." data-emote="think">
+  <p class="eyebrow">Option</p>
+  <h2>Rust has no null</h2>
+  <pre data-run>fn find_part(name: &amp;str) -&gt; Option&lt;u32&gt; {
+    match name {
+        "elbow" =&gt; Some(12),
+        "knee" =&gt; Some(7),
+        _ =&gt; None, // no null: just an honest "nothing"
+    }
+}
+
+fn main() {
+    for name in ["elbow", "antenna"] {
+        match find_part(name) {
+            Some(shelf) =&gt; println!("{name} is on shelf {shelf}"),
+            None =&gt; println!("no {name} in stock"),
+        }
+    }
+}</pre>
+  <p>Instead of a null that can sneak in anywhere, Rust has <code>Option&lt;T&gt;</code>: either <code>Some(value)</code> or <code>None</code>. It's just an enum from the standard library. The type tells you a value might be missing, and the compiler makes you deal with it.</p>
+  <div class="callout mnemonic"><span class="tag">Remember this</span><p><b>Option is a gift box.</b> <code>Some</code> has a present in it, <code>None</code> is empty. You have to open the box before you can play with what's inside.</p></div>
+  <aside class="speaker">Tony Hoare called null his "billion-dollar mistake". Rust's answer is that a missing value is a different type. You can't call .len() on an Option&lt;String&gt; by accident; you have to unpack it first.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">Option in practice</p>
+  <h2>The box is not the present</h2>
+  <p class="muted">Fails on purpose (E0308). Press Run and read the error.</p>
+  <pre data-run>fn find_part(name: &amp;str) -&gt; Option&lt;u32&gt; {
+    if name == "elbow" { Some(12) } else { None }
+}
+
+fn main() {
+    let shelf: u32 = find_part("elbow"); // an Option&lt;u32&gt; is not a u32
+    println!("{shelf}");
+}</pre>
+  <p>An <code>Option&lt;u32&gt;</code> isn't a <code>u32</code>, so this is a type mismatch (E0308). Open the box with <code>match</code>, <code>if let</code>, or one of its methods:</p>
+  <pre data-run>fn find_part(name: &amp;str) -&gt; Option&lt;u32&gt; {
+    if name == "elbow" { Some(12) } else { None }
+}
+
+fn main() {
+    let found = find_part("elbow");
+    let missing = find_part("antenna");
+
+    println!("{}", found.unwrap_or(0)); // 12
+    println!("{}", missing.unwrap_or(0)); // 0
+    println!("{:?}", found.map(|s| s * 10)); // Some(120)
+    println!("{}", missing.is_none()); // true
+
+    let shelf = found.expect("the elbow should always be in stock");
+    println!("shelf {shelf}");
+}</pre>
+  <aside class="speaker">Walk through unwrap_or, map and expect. Plant the flag for the next slides: unwrap() and expect() panic on None. That's fine in tests and quick scripts, and a bug waiting to happen in real code.</aside>
+</section>
+
+<section class="slide" data-robbie="Option is a shrug. Result is a shrug with an explanation. I&#x27;m more of a Result robot.">
+  <p class="eyebrow">Result</p>
+  <h2>When it can fail, say why</h2>
+  <pre data-run>fn main() {
+    for text in ["42", "forty-two", "-3"] {
+        match text.parse::&lt;u32&gt;() {
+            Ok(n) =&gt; println!("{text:&gt;10} -&gt; {n}"),
+            Err(e) =&gt; println!("{text:&gt;10} -&gt; error: {e}"),
+        }
+    }
+}</pre>
+  <p><code>Result&lt;T, E&gt;</code> is <code>Ok(value)</code> or <code>Err(reason)</code>. <code>Option</code> says "maybe nothing". <code>Result</code> says "maybe something went wrong, and here's what".</p>
+  <aside class="speaker">parse is generic: the ::&lt;u32&gt; turbofish tells it what to parse into. Point out that "-3" fails for u32 but would work for i32. Ask the room which type they'd choose for Robbie's step count.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">Your own errors</p>
+  <h2>An enum of everything that can go wrong</h2>
+  <pre data-run>use std::fmt;
+
+#[derive(Debug)]
+enum ChargeError {
+    NoOutlet,
+    Overheated { temp: u32 },
+}
+
+impl fmt::Display for ChargeError {
+    fn fmt(&amp;self, f: &amp;mut fmt::Formatter) -&gt; fmt::Result {
+        match self {
+            ChargeError::NoOutlet =&gt; write!(f, "no outlet in reach"),
+            ChargeError::Overheated { temp } =&gt; write!(f, "too hot to charge ({temp} C)"),
+        }
+    }
+}
+
+fn charge(temp: u32, outlet: bool) -&gt; Result&lt;u8, ChargeError&gt; {
+    if !outlet {
+        return Err(ChargeError::NoOutlet);
+    }
+    if temp &gt; 60 {
+        return Err(ChargeError::Overheated { temp });
+    }
+    Ok(100)
+}
+
+fn main() {
+    println!("{:?}", charge(30, true));
+    match charge(75, true) {
+        Ok(level) =&gt; println!("charged to {level}"),
+        Err(e) =&gt; println!("can't: {e}"),
+    }
+}</pre>
+  <p>Your error type is just an enum. Implement <code>Display</code> so it prints a human sentence. Callers can <code>match</code> on the variant to decide what to do, or print it and move on.</p>
+  <aside class="speaker">This is the exact pattern the homework uses: ParseError and RobotError are enums with Display. Note Overheated carries data. Mention that crates like thiserror write the Display impl for you; we write it by hand first so it's not magic.</aside>
+</section>
+
+<section class="slide" data-robbie="The question mark is a hot potato. Bad news? Toss it back to whoever called you. Good news? Keep it. I keep all the good news. There isn&#x27;t much." data-emote="happy">
+  <p class="eyebrow">The ? operator</p>
+  <h2>From a ladder of matches to one character</h2>
+  <div class="two">
+    <div><pre data-run>fn total_load(a: &amp;str, b: &amp;str) -&gt; Result&lt;u32, std::num::ParseIntError&gt; {
+    let x = match a.parse::&lt;u32&gt;() {
+        Ok(n) =&gt; n,
+        Err(e) =&gt; return Err(e),
+    };
+    let y = match b.parse::&lt;u32&gt;() {
+        Ok(n) =&gt; n,
+        Err(e) =&gt; return Err(e),
+    };
+    Ok(x + y)
+}
+
+fn main() {
+    println!("{:?}", total_load("12", "30"));
+    println!("{:?}", total_load("12", "lots"));
+}</pre></div>
+    <div><pre data-run>use std::num::ParseIntError;
+
+fn total_load(a: &amp;str, b: &amp;str) -&gt; Result&lt;u32, ParseIntError&gt; {
+    let x: u32 = a.parse()?; // bad news? return it now. good news? unwrap and carry on
+    let y: u32 = b.parse()?;
+    Ok(x + y)
+}
+
+fn main() {
+    println!("{:?}", total_load("12", "30"));
+    println!("{:?}", total_load("12", "lots"));
+}</pre></div>
+  </div>
+  <p><code>?</code> after a <code>Result</code> means: if it's <code>Err</code>, return it from this function right now; if it's <code>Ok</code>, unwrap it and keep going. It works on <code>Option</code> too.</p>
+  <div class="callout mnemonic"><span class="tag">Remember this</span><p><b><code>?</code> is a hot potato.</b> Good news, you keep it. Bad news, you toss it straight back to whoever called you.</p></div>
+  <aside class="speaker">Fun fact for the room: run cargo clippy on the left version and clippy literally says "this match expression can be replaced with ?". The ? also converts error types via From, which is how real projects mix error kinds; save that for Session 5.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">? needs somewhere to throw</p>
+  <h2>Only in functions that return Result or Option</h2>
+  <p class="muted">Fails on purpose (E0277). Press Run and read the error.</p>
+  <pre data-run>fn main() {
+    let n: u32 = "12".parse()?; // main returns (), so where would the error go?
+    println!("{n}");
+}</pre>
+  <p>Fix it by having <code>main</code> return a <code>Result</code> too: <code>fn main() -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt;</code>, then end with <code>Ok(())</code>. Or handle it right there with <code>match</code>.</p>
+  <pre data-run>fn first_digit(text: &amp;str) -&gt; Option&lt;u32&gt; {
+    let c = text.chars().next()?; // empty text: return None right here
+    c.to_digit(10)
+}
+
+fn main() {
+    println!(
+        "{:?} {:?} {:?}",
+        first_digit("7 bolts"),
+        first_digit("bolts"),
+        first_digit("")
+    );
+}</pre>
+  <aside class="speaker">E0277 here reads "the ? operator can only be used in a function that returns Result or Option". Show the Box&lt;dyn Error&gt; main and say it's a Session 5 idea we're borrowing early. The second snippet shows ? on an Option: an empty string returns None straight away.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">Choosing</p>
+  <h2>unwrap, expect, ? or match?</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Use</th><th>When</th><th>If it's None or Err</th></tr></thead>
+    <tbody>
+      <tr><td><code>?</code></td><td>Your caller should decide what to do</td><td>Returns it to the caller</td></tr>
+      <tr><td><code>match</code> / <code>if let</code></td><td>You know how to handle it here</td><td>Your code runs</td></tr>
+      <tr><td><code>unwrap_or(x)</code></td><td>There's a sensible default</td><td>Uses the default</td></tr>
+      <tr><td><code>expect("why")</code></td><td>It truly can't happen, and you want to say why</td><td>Panics with your message</td></tr>
+      <tr><td><code>unwrap()</code></td><td>Tests, examples, quick experiments</td><td>Panics with a generic message</td></tr>
+    </tbody>
+  </table></div>
+  <div class="callout robbie"><img src="../../assets/img/robbie-face.jpg" alt=""><div><span class="tag">Robbie says</span><p>Every <code>unwrap()</code> is a tiny promise that this will never fail. I made a lot of those promises about rain.</p></div></div>
+  <aside class="speaker">Rule of thumb for the course: library code (lib.rs) never unwraps on input it didn't create. main and tests can. Clippy has an optional lint, unwrap_used, that teams turn on in production code.</aside>
+</section>
+
+<section class="slide" data-robbie="Modules are rooms. pub is an open door. Private fields are my sock drawer. Stay out of the sock drawer.">
+  <p class="eyebrow">Modules</p>
+  <h2>Folders for your code</h2>
+  <pre data-run>mod robot {
+    pub struct Robot {
+        pub name: String,
+        battery: u8, // private: only code inside mod robot can touch it
+    }
+
+    impl Robot {
+        pub fn new(name: &amp;str) -&gt; Robot {
+            Robot {
+                name: name.to_string(),
+                battery: 100,
+            }
+        }
+
+        pub fn battery(&amp;self) -&gt; u8 {
+            self.battery
+        }
+    }
+
+    pub mod sensors {
+        pub fn rain_detected() -&gt; bool {
+            true // it's always raining on Robbie
+        }
+    }
+}
+
+use robot::Robot;
+
+fn main() {
+    let r = Robot::new("Robbie");
+    println!(
+        "{} {}% rain={}",
+        r.name,
+        r.battery(),
+        robot::sensors::rain_detected()
+    );
+}</pre>
+  <ul>
+    <li><code>mod</code> makes a module. Everything inside is <b>private</b> unless marked <code>pub</code>.</li>
+    <li><code>use</code> brings a name into scope so you don't type the full path every time.</li>
+    <li>In a real project, <code>mod robot;</code> in <code>lib.rs</code> loads <code>src/robot.rs</code>. The homework is split this way.</li>
+  </ul>
+  <aside class="speaker">Draw the file tree for the homework: lib.rs declares pub mod parse; pub mod robot;. Inside robot.rs, use crate::parse::Command reaches across. A crate is the whole package; a module is a room inside it.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">Privacy</p>
+  <h2>pub on the struct isn't pub on the fields</h2>
+  <p class="muted">Fails on purpose (E0616). Press Run and read the error.</p>
+  <pre data-run>mod robot {
+    pub struct Robot {
+        pub name: String,
+        battery: u8,
+    }
+
+    impl Robot {
+        pub fn new(name: &amp;str) -&gt; Robot {
+            Robot {
+                name: name.to_string(),
+                battery: 100,
+            }
+        }
+    }
+}
+
+fn main() {
+    let mut r = robot::Robot::new("Robbie");
+    r.battery = 255; // nice try
+    println!("{}", r.name);
+}</pre>
+  <p>The struct is public, but <code>battery</code> isn't, so code outside <code>mod robot</code> can't touch it (E0616). That's a feature: the module decides the rules, like "battery never goes over 100", and nobody can skip them.</p>
+  <aside class="speaker">This is how Rust does encapsulation without classes. Getter methods like battery() give read access; a charge() method could enforce the 100 cap. Ask: what would break if anyone could set battery to 255?</aside>
+</section>
+
+<section class="slide" data-robbie="Five error codes. Learn them and you&#x27;ll fix them faster than I rust. Which, at this point, is fast.">
+  <p class="eyebrow">Error field guide</p>
+  <h2>Five errors you'll meet this week</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Code</th><th>What it means</th><th>Usual fix</th></tr></thead>
+    <tbody>
+      <tr><td><code>E0004</code></td><td><code>match</code> doesn't cover every case</td><td>Add the missing arm, or a <code>_</code> arm if you mean "anything else"</td></tr>
+      <tr><td><code>E0308</code></td><td>Mismatched types, often <code>Option&lt;T&gt;</code> used as <code>T</code></td><td>Open the Option: <code>match</code>, <code>?</code>, <code>unwrap_or</code></td></tr>
+      <tr><td><code>E0277</code></td><td><code>?</code> in a function that returns <code>()</code></td><td>Return <code>Result</code> or <code>Option</code>, or <code>match</code> instead</td></tr>
+      <tr><td><code>E0063</code></td><td>Struct literal is missing a field</td><td>List every field, or use <code>..other</code></td></tr>
+      <tr><td><code>E0616</code> / <code>E0603</code></td><td>Private field or item</td><td>Add <code>pub</code>, or use a public method</td></tr>
+    </tbody>
+  </table></div>
+  <aside class="speaker">Leave this slide up during the lab. E0004 and E0308 are by far the most common today.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">Lab · 35 minutes</p>
+  <h2>Robbie's Command Parser</h2>
+  <div class="two">
+    <div>
+      <p>In <code>labs/lab3-command-parser</code> the types are written for you: <code>Direction</code>, <code>Command</code> and <code>Robot</code>. Fill in five functions, one step at a time.</p>
+      <pre data-lang="sh" data-title="terminal">cargo test step1   # Robot::new
+cargo test step2   # turn_left, turn_right
+cargo test step3   # parse -&gt; Option&lt;Command&gt;
+cargo test step4   # Robot::apply
+cargo test step5   # status
+cargo run          # drive him!</pre>
+    </div>
+    <div class="callout robbie"><img src="../../assets/img/robbie-face.jpg" alt=""><div><span class="tag">Robbie's rules</span>
+      <p>Use <code>match</code> for directions and commands, not a pile of <code>if</code>s. Use <code>?</code> at least once in <code>parse</code>. When it all passes, type <code>forward 3</code> and watch me go. Please don't drive me into the rain.</p>
+    </div></div>
+  </div>
+  <aside class="speaker">Most students fly through steps 1 and 2. Step 3 is where they meet split_once and parse().ok()?; nudge them to the ? on Option slide. Step 4: the battery rule. The full solution is teacher/s3/lab3-solution-lib.rs in the repo.</aside>
+</section>
+
+<section class="slide">
+  <p class="eyebrow">Homework 3 · due Session 4</p>
+  <h2>Command Language</h2>
+  <p>Robbie runs whole scripts now, and when something goes wrong he says exactly what, and on which line. No more shrugging with <code>None</code>.</p>
+  <ul>
+    <li><code>parse_line</code> returns <code>Result&lt;Command, ParseError&gt;</code>, with four kinds of error.</li>
+    <li><code>Robot::apply</code> refuses moves with <code>RobotError</code>: low battery, or leaving the grid.</li>
+    <li><code>run_script</code> runs a whole script with <code>?</code> and reports <code>line 7: would leave the grid at (0, 11)</code>.</li>
+    <li>The code is split into modules: <code>parse.rs</code>, <code>robot.rs</code>, <code>lib.rs</code>.</li>
+  </ul>
+  <p>8 visible tests, hidden edge cases, clippy and fmt: 10 points. <b>Also due:</b> Checkpoint 1, a 15-question review of Sessions 1 to 3.</p>
+  <aside class="speaker">The hidden tests check the documented rules exactly: case-insensitive keywords, -1 and 2.5 as bad numbers, zero distance, the grid edge at 10 versus 11, battery checked before bounds, and line numbers that count blank lines and comments. Tell students to read every doc comment.</aside>
+</section>
+
+<section class="slide" data-robbie="Recap, then Quiz 3. I&#x27;ll be over here, returning Err(TooRusty)." data-emote="happy">
+  <p class="eyebrow">Recap</p>
+  <h2>What you can do now</h2>
+  <ul class="big-list">
+    <li>Bundle data into structs and give them methods with <code>impl</code>.</li>
+    <li>Model choices with enums that carry data.</li>
+    <li>Handle every case with <code>match</code>, or one case with <code>if let</code>.</li>
+    <li>Say "maybe nothing" with <code>Option</code> and "maybe failed" with <code>Result</code>.</li>
+    <li>Pass errors up with <code>?</code>, and split code into modules.</li>
+  </ul>
+  <div class="cta-row"><a class="btn primary" href="quiz.html">Take Quiz 3</a><a class="btn" href="checkpoint.html">Checkpoint 1</a><a class="btn" href="handbook.html">Open the handbook</a></div>
+  <aside class="speaker">Close with the joke: Robbie's new favorite type is Result&lt;Robot, RustError&gt;, and lately he keeps getting the Err. Then Quiz 3.</aside>
+</section>
+
+</main>
+
+<div class="wrap"><nav class="deck-nav" aria-label="Slide controls">
+  <button class="btn prev" type="button">← Back</button>
+  <button class="btn primary next" type="button">Next →</button>
+  <span class="prog" aria-hidden="true"><i></i></span>
+  <span class="count">1 / 1</span>
+  <button class="btn ghost notes" type="button">Speaker notes</button>
+</nav></div>
+
+<script>
+window.ROBBIE_PAGE = {
+  "greeting": "Session 3 slides. A few examples fail on purpose: press Run and read what the compiler says. It's genuinely trying to help.",
+  "tips": [
+    "If a match won't compile, the error lists exactly which cases you missed. Copy them in.",
+    "Option<T> is not T. If you see E0308 today, you probably forgot to open the box.",
+    "? only works inside a function that returns Result or Option."
+  ],
+  "eli5": [
+    "A struct is a form with labeled boxes. An enum is a multiple choice question.",
+    "Option is a gift box that might be empty. Result is a parcel that might come back with a 'sorry, we couldn't deliver' note."
+  ],
+  "hype": [
+    "After today you can model basically anything in Rust. That's a big deal.",
+    "Enums with data are the feature people fall in love with. Hope you're ready."
+  ]
+};
+</script>
+<script src="../../assets/js/course.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="../../assets/js/site.js"></script>
+<script src="../../assets/js/robbie.js"></script>
+<script src="../../assets/js/slides.js"></script>
+<script type="module" src="../../assets/js/robbie3d.js"></script>
+</body>
+</html>
